@@ -42,6 +42,19 @@ var commandSchemas = map[string]SchemaCommand{
 			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output, e.g. summary.total_files"},
 		},
 	},
+	"stats": {
+		Name:        "stats",
+		Description: "Show media statistics with pre-computed human-readable sizes",
+		Flags: []SchemaFlag{
+			{Name: "provider", Type: "string", Default: "auto", Description: "media provider: auto, filesystem, imagecapture, gphoto"},
+			{Name: "source", Type: "string", Default: "", Description: "scan an existing mounted media path; implies filesystem provider"},
+			{Name: "only", Type: "string", Default: "all", Enum: []string{"all", "photos", "videos"}, Description: "media filter: all, photos, videos"},
+			{Name: "large-than", Type: "string", Default: "", Description: "include media larger than a size, e.g. 500MB, 1GB"},
+			{Name: "older-than", Type: "string", Default: "", Description: "include media older than an age, e.g. 90d, 6m, 1y"},
+			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
+			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output, e.g. old_files,old_size_human"},
+		},
+	},
 	"videos": {
 		Name:        "videos",
 		Description: "Show largest videos",

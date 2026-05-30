@@ -12,6 +12,7 @@ Usage:
   imole schema [command]                Show command structure and parameters (agent-friendly)
   imole doctor                          Check device and local dependencies
   imole scan [flags]                    Scan visible iPhone media
+  imole stats [flags]                   Show media statistics (agent-friendly)
   imole videos [--top N]               Show largest videos
   imole backup --to PATH [filters]      Back up media and write manifest
   imole report --manifest PATH          Summarize a backup manifest
@@ -21,6 +22,7 @@ Usage:
 Commands:
   doctor   Check system dependencies and device connectivity
   scan     Enumerate media files on connected iPhone or local path
+  stats    Show media statistics with pre-computed human-readable sizes
   videos   List largest video files
   backup   Copy selected media to local destination with verification
   report   Summarize a backup manifest file
@@ -54,6 +56,11 @@ Examples:
 
   # Scan with field filtering
   imole scan --json --fields summary.total_files,summary.photo_files
+
+  # Get media stats (agent-friendly, sizes pre-computed)
+  imole stats --json
+  imole stats --only videos --older-than 90d --json
+  imole stats --json --fields old_files,old_size_human
 
   # Find largest videos
   imole videos --top 30 --json
