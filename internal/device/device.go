@@ -1,3 +1,4 @@
+// Package device provides iPhone device detection and dependency checking.
 package device
 
 import (

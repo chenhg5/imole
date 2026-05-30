@@ -1,3 +1,4 @@
+// Package filter provides size, age, and kind filtering for media items.
 package filter
 
 import (

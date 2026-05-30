@@ -1,3 +1,4 @@
+// Package provider provides media backend implementations: ImageCaptureCore (macOS USB), filesystem, and gphoto2 (Linux USB).
 package provider
 
 import (

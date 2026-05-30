@@ -1,3 +1,4 @@
+// Package syscmd provides command lookup utilities.
 package syscmd
 
 import (

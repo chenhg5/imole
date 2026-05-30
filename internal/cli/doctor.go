@@ -23,30 +23,32 @@ func (a *App) runDoctor(ctx context.Context, args []string) int {
 		return a.outputJSON(report, fields)
 	}
 
-	fmt.Fprintln(a.out, "iMole Doctor")
+	fmt.Fprintln(a.out, a.bold("iMole Doctor"))
 	fmt.Fprintln(a.out)
 	for _, dep := range report.Dependencies {
-		status := "missing"
+		var status string
 		if dep.Found {
-			status = "found"
+			status = a.green("found")
+		} else {
+			status = a.red("missing")
 		}
 		fmt.Fprintf(a.out, "  %-14s %s", dep.Name, status)
 		if dep.Path != "" {
-			fmt.Fprintf(a.out, " · %s", dep.Path)
+			fmt.Fprintf(a.out, " · %s", a.dim(dep.Path))
 		}
 		if !dep.Found {
-			fmt.Fprintf(a.out, " · install: %s", dep.Install)
+			fmt.Fprintf(a.out, " · install: %s", a.dim(dep.Install))
 		}
 		fmt.Fprintln(a.out)
 	}
 	fmt.Fprintln(a.out)
 	if report.Device.UDID == "" {
-		fmt.Fprintln(a.out, "Device: not detected")
-		fmt.Fprintln(a.out, "Tip: connect iPhone by USB, unlock it, and tap Trust This Computer.")
+		fmt.Fprintln(a.out, a.yellow("Device: not detected"))
+		fmt.Fprintln(a.out, a.dim("Tip: connect iPhone by USB, unlock it, and tap Trust This Computer."))
 		return ExitSuccess
 	}
-	fmt.Fprintf(a.out, "Device: %s\n", firstNonEmpty(report.Device.Name, "iPhone"))
-	fmt.Fprintf(a.out, "  UDID: %s\n", report.Device.UDID)
+	fmt.Fprintf(a.out, "%s %s\n", a.bold("Device:"), a.green(firstNonEmpty(report.Device.Name, "iPhone")))
+	fmt.Fprintf(a.out, "  UDID: %s\n", a.dim(report.Device.UDID))
 	if report.Device.ProductType != "" {
 		fmt.Fprintf(a.out, "  Model: %s\n", report.Device.ProductType)
 	}

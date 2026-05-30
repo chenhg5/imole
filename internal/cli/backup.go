@@ -83,22 +83,22 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		Failed:      manifest.Summary.FailedFiles,
 	})
 
-	fmt.Fprintln(a.out, "Backup complete")
-	fmt.Fprintf(a.out, "Destination: %s\n", absPath(to))
-	fmt.Fprintf(a.out, "Selected:    %d files · %s\n", manifest.Summary.SelectedFiles, human.Bytes(manifest.Summary.SelectedSize))
+	fmt.Fprintln(a.out, a.bold("Backup complete"))
+	fmt.Fprintf(a.out, "Destination: %s\n", a.cyan(absPath(to)))
+	fmt.Fprintf(a.out, "Selected:    %d files · %s\n", manifest.Summary.SelectedFiles, a.cyan(human.Bytes(manifest.Summary.SelectedSize)))
 	if manifest.Summary.SelectedFiles == 0 && len(result.Items) > 0 {
 		printLargestHint(a.out, result.Items, f)
 	}
 	if manifest.Summary.SelectedFiles > 0 {
 		printBackupCandidates(a.out, manifest, 20)
 	}
-	fmt.Fprintf(a.out, "Copied:      %d files · %s\n", manifest.Summary.CopiedFiles, human.Bytes(manifest.Summary.CopiedSize))
-	fmt.Fprintf(a.out, "Verified:    %d files · %s\n", manifest.Summary.VerifiedFiles, human.Bytes(manifest.Summary.VerifiedSize))
+	fmt.Fprintf(a.out, "%s %d files · %s\n", a.green("Copied:     "), manifest.Summary.CopiedFiles, a.cyan(human.Bytes(manifest.Summary.CopiedSize)))
+	fmt.Fprintf(a.out, "%s %d files · %s\n", a.green("Verified:   "), manifest.Summary.VerifiedFiles, a.cyan(human.Bytes(manifest.Summary.VerifiedSize)))
 	if manifest.Summary.FailedFiles > 0 {
-		fmt.Fprintf(a.out, "Failed:      %d files\n", manifest.Summary.FailedFiles)
+		fmt.Fprintf(a.out, "%s %d files\n", a.red("Failed:     "), manifest.Summary.FailedFiles)
 		printFirstErrors(a.out, manifest)
 	}
-	fmt.Fprintf(a.out, "Manifest:    %s\n", absPath(to)+"/"+backup.ManifestName)
+	fmt.Fprintf(a.out, "Manifest:    %s\n", a.dim(absPath(to)+"/"+backup.ManifestName))
 	return ExitSuccess
 }
 

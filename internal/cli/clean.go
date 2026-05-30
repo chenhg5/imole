@@ -94,10 +94,10 @@ func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, pro
 	usingFilesystem := sourcePath != "" || providerName == provider.Filesystem
 
 	// Show deletion plan.
-	fmt.Fprintln(a.out, "Clean plan")
+	fmt.Fprintln(a.out, a.bold("Clean plan"))
 	fmt.Fprintln(a.out)
 	fmt.Fprintf(a.out, "Manifest:       %s\n", absPath(manifestPath))
-	fmt.Fprintf(a.out, "Verified files: %d (%s)\n", len(requests), human.Bytes(totalSize))
+	fmt.Fprintf(a.out, "Verified files: %d (%s)\n", len(requests), a.cyan(human.Bytes(totalSize)))
 	if usingFilesystem {
 		fmt.Fprintf(a.out, "Source mount:   %s\n", sourcePath)
 	}
@@ -110,12 +110,12 @@ func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, pro
 		return ExitDryRun
 	}
 
-	fmt.Fprintln(a.out, "Warning: This will delete the files listed above from your iPhone.")
-	fmt.Fprintln(a.out, "         iMole only deletes files verified in the manifest.")
+	fmt.Fprintln(a.out, a.yellow("Warning: This will delete the files listed above from your iPhone."))
+	fmt.Fprintln(a.out, a.dim("         iMole only deletes files verified in the manifest."))
 	if usingFilesystem {
-		fmt.Fprintln(a.out, "         Deletion is from the mounted filesystem — space is freed immediately.")
+		fmt.Fprintln(a.out, a.dim("         Deletion is from the mounted filesystem — space is freed immediately."))
 	} else {
-		fmt.Fprintln(a.out, "         Files will remain in Recently Deleted for 30 days (no space freed until cleared).")
+		fmt.Fprintln(a.out, a.dim("         Files will remain in Recently Deleted for 30 days (no space freed until cleared)."))
 	}
 	fmt.Fprintln(a.out)
 
@@ -164,10 +164,10 @@ func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, pro
 	})
 
 	fmt.Fprintln(a.out)
-	fmt.Fprintln(a.out, "Delete complete")
-	fmt.Fprintf(a.out, "  Deleted: %d files · %s\n", deleted, human.Bytes(deletedSize))
+	fmt.Fprintln(a.out, a.bold("Delete complete"))
+	fmt.Fprintf(a.out, "  %s %d files · %s\n", a.green("Deleted:"), deleted, a.cyan(human.Bytes(deletedSize)))
 	if failed > 0 {
-		fmt.Fprintf(a.out, "  Failed:  %d files\n", failed)
+		fmt.Fprintf(a.out, "  %s  %d files\n", a.red("Failed:"), failed)
 		printDeleteErrors(a.out, results, 5)
 	}
 	fmt.Fprintln(a.out)

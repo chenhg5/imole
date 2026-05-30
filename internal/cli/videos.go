@@ -43,9 +43,14 @@ func (a *App) runVideos(ctx context.Context, args []string) int {
 	if a.shouldJSON() || jsonMode {
 		return a.outputJSON(videos, fields)
 	}
-	fmt.Fprintf(a.out, "Top %d Videos\n\n", len(videos))
+	fmt.Fprintf(a.out, "%s\n\n", a.bold(fmt.Sprintf("Top %d Videos", len(videos))))
 	for i, item := range videos {
-		fmt.Fprintf(a.out, "%2d. %-28s %8s  %s\n", i+1, item.Name, human.Bytes(item.Size), item.ModTime.Format("2006-01-02"))
+		fmt.Fprintf(a.out, "%2d. %-28s %s  %s\n",
+			i+1,
+			item.Name,
+			a.cyan(fmt.Sprintf("%8s", human.Bytes(item.Size))),
+			a.dim(item.ModTime.Format("2006-01-02")),
+		)
 	}
 	return ExitSuccess
 }

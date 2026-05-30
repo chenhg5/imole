@@ -1,3 +1,4 @@
+// Package cli provides the iMole command-line interface.
 package cli
 
 import (
@@ -22,15 +23,15 @@ func New(out, err io.Writer) *App {
 }
 
 func isTerminal(w io.Writer) bool {
-	if f, ok := w.(*os.File); ok {
-		return isTerminalFD(int(f.Fd()))
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
 	}
-	return false
-}
-
-// isTerminalFD checks if the given file descriptor is a terminal.
-func isTerminalFD(fd int) bool {
-	return false // stub: always false in non-interactive context
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }
 
 func (a *App) Run(ctx context.Context, args []string) int {
@@ -81,9 +82,9 @@ func (a *App) Run(ctx context.Context, args []string) int {
 
 func (a *App) printError(err *Error) {
 	if a.isTTY {
-		fmt.Fprintf(a.err, "imole: %s\n", err.Message)
+		fmt.Fprintf(a.err, "%s %s\n", a.red("error:"), err.Message)
 		if err.Suggestion != "" {
-			fmt.Fprintf(a.err, "Suggestion: %s\n", err.Suggestion)
+			fmt.Fprintf(a.err, "%s %s\n", a.yellow("hint: "), err.Suggestion)
 		}
 	} else {
 		json.NewEncoder(a.err).Encode(err)

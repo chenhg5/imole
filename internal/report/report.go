@@ -1,3 +1,4 @@
+// Package report generates summaries from backup manifests.
 package report
 
 import "github.com/chenhg5/imole/internal/backup"

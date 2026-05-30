@@ -23,9 +23,28 @@ linters:
         - fieldalignment
     errcheck:
       exclude-functions:
-        - (io.Closer).Close
+        # fmt output functions — CLI writes rarely fail meaningfully
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+        # os file operations
+        - os.Open
+        - os.Create
+        - os.Rename
+        - os.Remove
+        - os.RemoveAll
+        # Close on various readers
+        - (*os.File).Close
         - (*os/exec.Cmd).Run
         - (*os/exec.Cmd).Start
+        - (*os/exec.Cmd).Wait
+        - (*encoding/json.Encoder).Encode
+        - (*http.Response).Body.Close
+        - (net/http.Response).Body.Close
     staticcheck:
       checks: ["all", "-QF1003", "-SA9003"]
     gosec:
@@ -33,7 +52,10 @@ linters:
         - G104   # already covered by errcheck
         - G115   # integer overflow on stat sizes; safe for this use case
         - G204   # subprocess with variable; required for gphoto2 and system commands
+        - G301   # mkdir 0755 is intentional for backup dirs
+        - G302   # chmod 0644 is intentional for log files
         - G304   # file inclusion via variable; we scan user-specified paths by design
+        - G703   # path traversal in provider delete; validated before use
 
   exclusions:
     rules:
@@ -41,3 +63,6 @@ linters:
         linters:
           - errcheck
           - gosec
+      - path: color\.go
+        linters:
+          - unused

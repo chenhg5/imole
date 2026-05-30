@@ -1,3 +1,4 @@
+// Package human formats byte sizes and durations for human-readable output.
 package human
 
 import "fmt"

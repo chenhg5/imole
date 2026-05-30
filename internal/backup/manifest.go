@@ -1,3 +1,4 @@
+// Package backup provides media file copying, verification, and manifest management.
 package backup
 
 import (

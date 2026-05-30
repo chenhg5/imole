@@ -1,3 +1,4 @@
+// Package media provides DCIM media file scanning and classification.
 package media
 
 import (

@@ -1,3 +1,4 @@
+// Package progress renders download progress for ImageCaptureCore operations.
 package progress
 
 import (

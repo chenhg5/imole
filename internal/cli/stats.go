@@ -94,16 +94,16 @@ func (a *App) runStats(ctx context.Context, args []string) int {
 	}
 
 	// Human-readable output
-	fmt.Fprintln(a.out, "iMole Stats")
+	fmt.Fprintln(a.out, a.bold("iMole Stats"))
 	fmt.Fprintln(a.out)
-	fmt.Fprintf(a.out, "Total:   %d files · %s\n", stats.TotalFiles, stats.TotalHuman)
-	fmt.Fprintf(a.out, "Photos:  %d files · %s\n", stats.PhotoFiles, stats.PhotoHuman)
-	fmt.Fprintf(a.out, "Videos:  %d files · %s\n", stats.VideoFiles, stats.VideoHuman)
+	fmt.Fprintf(a.out, "Total:   %d files · %s\n", stats.TotalFiles, a.cyan(stats.TotalHuman))
+	fmt.Fprintf(a.out, "Photos:  %d files · %s\n", stats.PhotoFiles, a.cyan(stats.PhotoHuman))
+	fmt.Fprintf(a.out, "Videos:  %d files · %s\n", stats.VideoFiles, a.cyan(stats.VideoHuman))
 	if oldAgeRaw != "" {
-		fmt.Fprintf(a.out, "Old:     %d files · %s (>%s)\n", stats.OldFiles, stats.OldHuman, oldAgeRaw)
+		fmt.Fprintf(a.out, "Old:     %d files · %s (>%s)\n", stats.OldFiles, a.cyan(stats.OldHuman), oldAgeRaw)
 	}
 	if largeThan != "" {
-		fmt.Fprintf(a.out, "Large:   %d files · %s (>%s)\n", stats.LargeFiles, stats.LargeHuman, largeThan)
+		fmt.Fprintf(a.out, "Large:   %d files · %s (>%s)\n", stats.LargeFiles, a.cyan(stats.LargeHuman), largeThan)
 	}
 	return ExitSuccess
 }

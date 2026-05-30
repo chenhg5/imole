@@ -39,23 +39,23 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	}
 
 	s := result.Summary
-	fmt.Fprintln(a.out, "iMole Scan Report")
-	fmt.Fprintf(a.out, "Source: %s\n\n", s.Root)
-	fmt.Fprintf(a.out, "Media files: %d · %s\n", s.TotalFiles, human.Bytes(s.TotalSize))
-	fmt.Fprintf(a.out, "Photos:      %d · %s\n", s.PhotoFiles, human.Bytes(s.PhotoSize))
-	fmt.Fprintf(a.out, "Videos:      %d · %s\n", s.VideoFiles, human.Bytes(s.VideoSize))
-	fmt.Fprintf(a.out, "Large media: %d · %s (>%s)\n", s.LargeFiles, human.Bytes(s.LargeSize), largeThan)
-	fmt.Fprintf(a.out, "Old media:   %d · %s (>%s)\n", s.OldFiles, human.Bytes(s.OldSize), oldAgeRaw)
+	fmt.Fprintln(a.out, a.bold("iMole Scan Report"))
+	fmt.Fprintf(a.out, "Source: %s\n\n", a.cyan(s.Root))
+	fmt.Fprintf(a.out, "Media files: %d · %s\n", s.TotalFiles, a.cyan(human.Bytes(s.TotalSize)))
+	fmt.Fprintf(a.out, "Photos:      %d · %s\n", s.PhotoFiles, a.cyan(human.Bytes(s.PhotoSize)))
+	fmt.Fprintf(a.out, "Videos:      %d · %s\n", s.VideoFiles, a.cyan(human.Bytes(s.VideoSize)))
+	fmt.Fprintf(a.out, "Large media: %d · %s (>%s)\n", s.LargeFiles, a.cyan(human.Bytes(s.LargeSize)), largeThan)
+	fmt.Fprintf(a.out, "Old media:   %d · %s (>%s)\n", s.OldFiles, a.cyan(human.Bytes(s.OldSize)), oldAgeRaw)
 	if s.ScanSkipped > 0 {
 		fmt.Fprintf(a.out, "Skipped:     %d unreadable entries\n", s.ScanSkipped)
 	}
 	fmt.Fprintln(a.out)
-	fmt.Fprintln(a.out, "Recommended next steps:")
-	fmt.Fprintln(a.out, "  imole videos --top 30")
+	fmt.Fprintln(a.out, a.bold("Recommended next steps:"))
+	fmt.Fprintln(a.out, a.dim("  imole videos --top 30"))
 	if source != "" {
-		fmt.Fprintf(a.out, "  imole backup --source %s --to /path/to/backup --only videos --older-than 90d\n", source)
+		fmt.Fprintf(a.out, a.dim("  imole backup --source %s --to /path/to/backup --only videos --older-than 90d\n"), source)
 	} else {
-		fmt.Fprintln(a.out, "  imole backup --source /path/to/DCIM --to /path/to/backup --only videos --older-than 90d")
+		fmt.Fprintln(a.out, a.dim("  imole backup --source /path/to/DCIM --to /path/to/backup --only videos --older-than 90d"))
 	}
 	return ExitSuccess
 }

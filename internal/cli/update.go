@@ -189,7 +189,7 @@ func fetchLatestRelease() (*githubRelease, error) {
 	if err != nil {
 		return nil, fmt.Errorf("GitHub API request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("no releases found at github.com/%s — check back later", githubRepo)
