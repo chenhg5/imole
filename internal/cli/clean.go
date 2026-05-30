@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/chenhg5/imole/internal/backup"
@@ -15,11 +16,12 @@ import (
 )
 
 func (a *App) runClean(ctx context.Context, args []string) int {
-	var manifestPath, providerName string
+	var manifestPath, providerName, sourcePath string
 	var dryRun, yes bool
 	fs := flagSet("clean")
 	fs.StringVar(&manifestPath, "manifest", "", "path to manifest.json from a previous backup")
-	fs.StringVar(&providerName, "provider", "auto", "provider to use for deletion (auto|imagecapture)")
+	fs.StringVar(&providerName, "provider", "auto", "provider to use for deletion (auto|imagecapture|filesystem)")
+	fs.StringVar(&sourcePath, "source", "", "mount point of the iPhone DCIM directory (Linux/Windows: ifuse or iTunes mount)")
 	fs.BoolVar(&dryRun, "dry-run", false, "show what would be deleted without deleting")
 	fs.BoolVar(&yes, "yes", false, "skip confirmation prompt")
 	if err := parseFlags(fs, args); err != nil {
@@ -30,26 +32,41 @@ func (a *App) runClean(ctx context.Context, args []string) int {
 	if manifestPath == "" {
 		return a.runCleanGuide()
 	}
-	return a.runCleanFromManifest(ctx, manifestPath, provider.Name(providerName), dryRun, yes)
+	return a.runCleanFromManifest(ctx, manifestPath, provider.Name(providerName), sourcePath, dryRun, yes)
 }
 
 // runCleanGuide prints the safe cleanup flow when no manifest is provided.
 func (a *App) runCleanGuide() int {
 	fmt.Fprintln(a.out, "Safe cleanup mode")
 	fmt.Fprintln(a.out)
-	fmt.Fprintln(a.out, "Recommended flow:")
+	fmt.Fprintln(a.out, "Recommended flow (macOS, USB):")
 	fmt.Fprintln(a.out, "  1. imole scan")
 	fmt.Fprintln(a.out, "  2. imole backup --to /path/to/backup --only videos --older-than 90d")
 	fmt.Fprintln(a.out, "  3. imole report --manifest /path/to/backup/manifest.json")
 	fmt.Fprintln(a.out, "  4. imole clean --manifest /path/to/backup/manifest.json")
 	fmt.Fprintln(a.out)
+	fmt.Fprintln(a.out, "Recommended flow (Linux, ifuse mount):")
+	fmt.Fprintln(a.out, "  1. sudo apt install ifuse libimobiledevice-utils")
+	fmt.Fprintln(a.out, "  2. idevicepair pair && mkdir -p ~/iphone && ifuse ~/iphone")
+	fmt.Fprintln(a.out, "  3. imole backup --source ~/iphone/DCIM --to /path/to/backup --only videos")
+	fmt.Fprintln(a.out, "  4. imole clean --manifest /path/to/backup/manifest.json --source ~/iphone/DCIM")
+	fmt.Fprintln(a.out, "  5. fusermount -u ~/iphone")
+	fmt.Fprintln(a.out)
+	fmt.Fprintln(a.out, `Recommended flow (Windows, iTunes mount):`)
+	fmt.Fprintln(a.out, "  1. Install iTunes and connect iPhone; unlock and tap Trust")
+	fmt.Fprintln(a.out, `  2. Open Windows Explorer → This PC → [iPhone] → Internal Storage → DCIM`)
+	fmt.Fprintln(a.out, `  3. imole backup --source "\\Apple\iPhone\Internal Storage\DCIM" --to C:\backup`)
+	fmt.Fprintln(a.out, `  4. imole clean  --manifest C:\backup\manifest.json --source "\\Apple\iPhone\Internal Storage\DCIM"`)
+	fmt.Fprintln(a.out)
 	fmt.Fprintln(a.out, "Tip: use --dry-run to preview what would be deleted before committing.")
 	return ExitSuccess
 }
 
-// runCleanFromManifest reads a backup manifest, finds verified files,
-// and deletes them from the connected iPhone via ImageCaptureCore.
-func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, providerName provider.Name, dryRun, yes bool) int {
+// runCleanFromManifest reads a backup manifest, finds verified files, and
+// deletes them from the iPhone. On macOS it uses ImageCaptureCore (USB/PTP);
+// on Linux/Windows pass --source with the ifuse/iTunes mount point to use
+// filesystem deletion (os.Remove), which frees space immediately.
+func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, providerName provider.Name, sourcePath string, dryRun, yes bool) int {
 	manifest, err := backup.ReadManifest(manifestPath)
 	if err != nil {
 		a.printError(runtimeError("manifest_read_failed", err.Error(),
@@ -73,11 +90,17 @@ func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, pro
 		return ExitSuccess
 	}
 
+	// Determine whether we are using filesystem (mount) or USB provider.
+	usingFilesystem := sourcePath != "" || providerName == provider.Filesystem
+
 	// Show deletion plan.
 	fmt.Fprintln(a.out, "Clean plan")
 	fmt.Fprintln(a.out)
 	fmt.Fprintf(a.out, "Manifest:       %s\n", absPath(manifestPath))
 	fmt.Fprintf(a.out, "Verified files: %d (%s)\n", len(requests), human.Bytes(totalSize))
+	if usingFilesystem {
+		fmt.Fprintf(a.out, "Source mount:   %s\n", sourcePath)
+	}
 	fmt.Fprintln(a.out)
 
 	printCleanCandidates(a.out, manifest, 15)
@@ -89,7 +112,11 @@ func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, pro
 
 	fmt.Fprintln(a.out, "Warning: This will delete the files listed above from your iPhone.")
 	fmt.Fprintln(a.out, "         iMole only deletes files verified in the manifest.")
-	fmt.Fprintln(a.out, "         Files will remain in Recently Deleted for 30 days (no space freed until cleared).")
+	if usingFilesystem {
+		fmt.Fprintln(a.out, "         Deletion is from the mounted filesystem — space is freed immediately.")
+	} else {
+		fmt.Fprintln(a.out, "         Files will remain in Recently Deleted for 30 days (no space freed until cleared).")
+	}
 	fmt.Fprintln(a.out)
 
 	if !yes && !a.confirm("Proceed with deletion?") {
@@ -98,13 +125,18 @@ func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, pro
 	}
 
 	fmt.Fprintf(a.err, "Deleting %d files via %s provider...\n", len(requests), providerName)
-	fmt.Fprintln(a.err, "Note: your iPhone may show a confirmation prompt — accept it to allow deletion.")
+	if !usingFilesystem {
+		fmt.Fprintln(a.err, "Note: your iPhone may show a confirmation prompt — accept it to allow deletion.")
+	}
 	fmt.Fprintln(a.err)
 
-	results, err := provider.Delete(ctx, providerName, requests)
+	results, err := provider.Delete(ctx, providerName, sourcePath, requests)
 	if err != nil {
-		a.printError(runtimeError("delete_failed", err.Error(),
-			"Make sure iPhone is connected, unlocked, and trusted on this Mac.", false))
+		hint := "Make sure iPhone is connected, unlocked, and trusted."
+		if usingFilesystem {
+			hint = fmt.Sprintf("Check that the mount point exists and is readable: %s", sourcePath)
+		}
+		a.printError(runtimeError("delete_failed", err.Error(), hint, false))
 		return ExitError
 	}
 
@@ -139,11 +171,22 @@ func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, pro
 		printDeleteErrors(a.out, results, 5)
 	}
 	fmt.Fprintln(a.out)
-	fmt.Fprintln(a.out, "Space freed so far: 0  (files are in Recently Deleted)")
-	fmt.Fprintln(a.out)
-	fmt.Fprintln(a.out, "Final step to reclaim space:")
-	fmt.Fprintln(a.out, "  On iPhone → Photos → Albums → Recently Deleted → Delete All")
-	fmt.Fprintf(a.out, "  Estimated space freed after that step: ~%s\n", human.Bytes(deletedSize))
+	if usingFilesystem {
+		fmt.Fprintf(a.out, "Space freed: ~%s (filesystem deletion, immediate)\n", human.Bytes(deletedSize))
+		fmt.Fprintln(a.out)
+		fmt.Fprintln(a.out, "Next step:")
+		if runtime.GOOS == "windows" {
+			fmt.Fprintln(a.out, "  Safely eject the iPhone from Windows Explorer.")
+		} else {
+			fmt.Fprintf(a.out, "  Unmount the iPhone: fusermount -u %s\n", sourcePath)
+		}
+	} else {
+		fmt.Fprintln(a.out, "Space freed so far: 0  (files are in Recently Deleted)")
+		fmt.Fprintln(a.out)
+		fmt.Fprintln(a.out, "Final step to reclaim space:")
+		fmt.Fprintln(a.out, "  On iPhone → Photos → Albums → Recently Deleted → Delete All")
+		fmt.Fprintf(a.out, "  Estimated space freed after that step: ~%s\n", human.Bytes(deletedSize))
+	}
 
 	if failed > 0 {
 		return ExitError

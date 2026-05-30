@@ -47,11 +47,33 @@ sudo apt install libimobiledevice-utils
 # Scan via USB (gphoto2 — auto-detected)
 sudo apt install gphoto2
 
-# Mount DCIM as filesystem (for --source PATH workflow)
+# Mount DCIM as filesystem (required for backup + delete workflow)
 sudo apt install ifuse
-ifuse ~/iphone         # mount
+idevicepair pair          # trust the device (one-time)
+mkdir -p ~/iphone
+ifuse ~/iphone            # mount iPhone DCIM
+```
+
+### Linux full cleanup workflow
+
+```bash
+# 1. Mount
+ifuse ~/iphone
+
+# 2. Scan what's on the phone
 imole scan --source ~/iphone/DCIM
-fusermount -u ~/iphone  # unmount when done
+
+# 3. Backup (verifies every file with SHA-256)
+imole backup --source ~/iphone/DCIM --to ~/backup/iphone --only videos --older-than 90d
+
+# 4. Review what will be deleted
+imole report --manifest ~/backup/iphone/manifest.json
+
+# 5. Delete verified files directly from the mount (space freed immediately, no Recently Deleted)
+imole clean --manifest ~/backup/iphone/manifest.json --source ~/iphone/DCIM
+
+# 6. Unmount
+fusermount -u ~/iphone
 ```
 
 ### Windows prerequisites
@@ -65,6 +87,7 @@ fusermount -u ~/iphone  # unmount when done
 ```powershell
 imole.exe scan --source "\\Apple\iPhone\Internal Storage\DCIM"
 imole.exe backup --source "\\Apple\iPhone\Internal Storage\DCIM" --to C:\backup
+imole.exe clean --manifest C:\backup\manifest.json --source "\\Apple\iPhone\Internal Storage\DCIM"
 ```
 
 ---
@@ -343,7 +366,7 @@ Use the following decision tree when helping a user free iPhone storage:
 
 | Limitation | Detail |
 |---|---|
-| **USB delete: macOS only** | `imole clean --manifest` deletes via ImageCaptureCore (macOS). On Linux mount with `ifuse` and delete from the mounted path. On Windows not supported via USB. |
+| **USB delete: macOS only** | `imole clean --manifest` deletes via ImageCaptureCore (macOS). On Linux/Windows use `--source PATH` (ifuse or iTunes mount) for filesystem deletion — space is freed immediately, no "Recently Deleted" buffer. |
 | **USB scan: Linux needs gphoto2** | Install `gphoto2`; or mount with `ifuse` and use `--source PATH`. |
 | **Windows: use `--source PATH`** | Auto USB scan not supported; mount DCIM via iTunes/Windows Explorer. |
 | **Recently Deleted** | Deleted files occupy space for 30 days until the user clears them manually (Photos → Albums → Recently Deleted → Delete All). |

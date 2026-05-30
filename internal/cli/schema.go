@@ -105,7 +105,8 @@ var commandSchemas = map[string]SchemaCommand{
 		Description: "Delete verified files from iPhone using a backup manifest",
 		Flags: []SchemaFlag{
 			{Name: "manifest", Type: "string", Required: false, Description: "path to manifest.json from a previous backup; if omitted, prints recommended flow"},
-			{Name: "provider", Type: "string", Default: "auto", Description: "deletion provider: auto, imagecapture (macOS only)"},
+			{Name: "provider", Type: "string", Default: "auto", Description: "deletion provider: auto, imagecapture (macOS USB), filesystem (mount path)"},
+			{Name: "source", Type: "string", Required: false, Description: "mount point of iPhone DCIM directory (Linux: ifuse mount, Windows: iTunes drive); enables filesystem deletion with immediate space reclaim"},
 			{Name: "dry-run", Type: "bool", Default: "false", Description: "preview deletion without removing files (exit 10 = safe to proceed)"},
 			{Name: "yes", Type: "bool", Default: "false", Description: "skip confirmation prompt; useful for scripting"},
 		},

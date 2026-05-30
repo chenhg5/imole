@@ -58,7 +58,8 @@ imole clean  --manifest ~/iphone-backup/manifest.json  # delete from iPhone
 | USB auto-scan | ✅ ImageCaptureCore | ✅ gphoto2 | ➖ |
 | Scan via `--source PATH` | ✅ | ✅ | ✅ |
 | Backup (copy + verify) | ✅ | ✅ | ✅ |
-| Delete from device (USB) | ✅ | ❌ | ❌ |
+| Delete via USB (native) | ✅ ImageCaptureCore | ❌ | ❌ |
+| Delete via `--source PATH` | ✅ | ✅ ifuse | ✅ iTunes mount |
 | Device detection | ✅ | ✅ | ✅ |
 
 ## Install
@@ -94,9 +95,32 @@ brew install libimobiledevice   # optional, for imole doctor device details
 ```bash
 sudo apt install libimobiledevice-utils gphoto2   # USB scan
 sudo apt install ifuse                             # mount DCIM as filesystem
+
+# Full backup + delete workflow via ifuse:
+idevicepair pair                                  # one-time trust pairing
+mkdir -p ~/iphone && ifuse ~/iphone               # mount
+imole backup --source ~/iphone/DCIM --to ~/iphone-backup
+imole clean  --manifest ~/iphone-backup/manifest.json --source ~/iphone/DCIM
+fusermount -u ~/iphone                            # unmount when done
 ```
 
-**Windows** — install iTunes (provides USB drivers), then mount via Windows Explorer and use `--source PATH`.
+**Windows** — install iTunes (provides USB drivers and mounts the iPhone as a browsable device):
+
+```powershell
+# 1. Install iTunes, connect iPhone, unlock and tap "Trust This Computer"
+# 2. Open Windows Explorer → This PC → [iPhone] → Internal Storage → DCIM
+#    Note the path shown in the address bar, e.g.:
+#      \\Apple\iPhone\Internal Storage\DCIM
+
+# Scan
+imole.exe scan --source "\\Apple\iPhone\Internal Storage\DCIM"
+
+# Backup
+imole.exe backup --source "\\Apple\iPhone\Internal Storage\DCIM" --to C:\iphone-backup
+
+# Delete verified files (space freed immediately)
+imole.exe clean --manifest C:\iphone-backup\manifest.json --source "\\Apple\iPhone\Internal Storage\DCIM"
+```
 
 ## Commands
 
@@ -107,7 +131,7 @@ imole stats   [filters]              Summary stats: total, photos, videos, old, 
 imole videos  [--top N]             Ranked list of largest videos
 imole backup  --to PATH [filters]   Back up matching media, write manifest.json
 imole report  --manifest PATH       Summarize a backup manifest
-imole clean   --manifest PATH       Delete verified files from iPhone
+imole clean   --manifest PATH [--source PATH]  Delete verified files from iPhone
 imole guide   [topic]               Step-by-step cleanup guide (WeChat, Telegram…)
 imole history [--limit N]           Show recent backup and delete operations
 imole update  [--check]            Update imole to the latest release
@@ -237,7 +261,7 @@ iMole treats iPhone media as irreplaceable data, not cache.
 - **Backup before delete** — `clean` reads a `manifest.json`; it refuses to run without one.
 - **Verify before delete** — only files marked `verified: true` in the manifest are eligible for deletion.
 - **Audit trail** — `imole history` and `~/.local/share/imole/operations.jsonl` log every backup and delete.
-- **Recently Deleted** — deleted files sit in iOS "Recently Deleted" for 30 days. iMole reminds you to clear it.
+- **Recently Deleted** — when deleting via USB (macOS), files sit in iOS "Recently Deleted" for 30 days; iMole reminds you to clear it. When deleting via `--source PATH` (Linux/Windows filesystem mount), space is freed immediately.
 - **iCloud warning** — if iCloud Photos is enabled, deleting from iPhone also removes from iCloud. iMole warns you.
 
 iMole cannot automatically clean:
