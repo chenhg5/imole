@@ -1,0 +1,6 @@
+# iMole project shellcheck configuration (for install.sh)
+
+disable=SC2155
+disable=SC2034
+disable=SC2059
+disable=SC1091

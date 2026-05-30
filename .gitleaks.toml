@@ -1,0 +1,19 @@
+# iMole gitleaks configuration
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "iMole-specific allowlist"
+
+# Test fixtures never hold real secrets.
+paths = [
+    '''tests/.*''',
+    '''.*_test\.go$''',
+]
+
+# iMole mentions credentials in device detection and USB protocol messages.
+regexes = [
+    '''password''',
+    '''Touch ID''',
+]

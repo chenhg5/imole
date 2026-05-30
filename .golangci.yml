@@ -1,0 +1,43 @@
+# golangci-lint configuration for iMole
+
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+    - gosec
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - shadow
+        - fieldalignment
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os/exec.Cmd).Run
+        - (*os/exec.Cmd).Start
+    staticcheck:
+      checks: ["all", "-QF1003", "-SA9003"]
+    gosec:
+      excludes:
+        - G104   # already covered by errcheck
+        - G115   # integer overflow on stat sizes; safe for this use case
+        - G204   # subprocess with variable; required for gphoto2 and system commands
+        - G304   # file inclusion via variable; we scan user-specified paths by design
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
