@@ -181,7 +181,33 @@ main() {
         exit 1
     fi
 
-    local tag="${1:-}"
+    # Parse args
+    local tag=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --prefix)
+                INSTALL_DIR="$2"
+                shift 2
+                ;;
+            -h|--help)
+                echo "Usage: $0 [--prefix DIR] [VERSION]"
+                echo ""
+                echo "Options:"
+                echo "  --prefix DIR   Install to DIR (default: /usr/local/bin)"
+                echo "  VERSION        Version tag (e.g., v0.1.0)"
+                exit 0
+                ;;
+            v*)
+                tag="$1"
+                shift
+                ;;
+            *)
+                log_warn "Unknown option: $1"
+                shift
+                ;;
+        esac
+    done
+
     if [[ -z "$tag" ]]; then
         log_info "Detecting latest version..."
         if ! tag="$(get_latest_tag)"; then
