@@ -58,6 +58,10 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		return a.runGuide(ctx, args[1:])
 	case "clean":
 		return a.runClean(ctx, args[1:])
+	case "history":
+		return a.runHistory(ctx, args[1:])
+	case "update":
+		return a.runUpdate(ctx, args[1:])
 	case "help", "--help", "-h":
 		a.runHelp()
 		return ExitSuccess

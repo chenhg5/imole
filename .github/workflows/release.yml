@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     name: Build
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@4
@@ -21,15 +21,13 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build binaries
-        run: |
-          make release
-          ls -lh bin/
+      - name: Build all binaries
+        run: make release
 
       - name: Generate checksums
         run: |
           cd bin
-          sha256sum imole-darwin-* > SHA256SUMS
+          sha256sum imole-* > SHA256SUMS
           cat SHA256SUMS
 
       - name: Upload artifacts
@@ -37,7 +35,6 @@ jobs:
         with:
           name: binaries
           path: bin/*
-          retention-days: 1
 
   release:
     name: Publish Release
@@ -51,9 +48,6 @@ jobs:
         with:
           name: binaries
           path: bin
-
-      - name: Display artifacts
-        run: ls -lh bin/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -84,10 +78,10 @@ jobs:
           curl -fsSL "https://github.com/chenhg5/imole/releases/download/${GITHUB_REF#refs/tags/}/SHA256SUMS" -o /tmp/SHA256SUMS
 
       - name: Get SHA256 for arm64
+        id: shas
         run: |
           ARM_SHA=$(awk '/imole-darwin-arm64/ {print $1}' /tmp/SHA256SUMS)
           echo "arm_sha=${ARM_SHA}" >> $GITHUB_OUTPUT
-        id: shas
 
       - name: Get SHA256 for amd64
         run: |
@@ -101,27 +95,28 @@ jobs:
           ARM_SHA: ${{ steps.shas.outputs.arm_sha }}
           AMD_SHA: ${{ steps.shas.outputs.amd_sha }}
         run: |
-          sed -i.bak \
+          sed -i \
             -e "s|version \".*\"|version \"${VERSION}\"|" \
             -e "s|releases/download/[^/]+/imole-darwin-arm64|releases/download/${TAG}/imole-darwin-arm64|" \
             -e "s|releases/download/[^/]+/imole-darwin-amd64|releases/download/${TAG}/imole-darwin-amd64|" \
-            -e "s|sha256 \"placeholder\"|sha256 \"${ARM_SHA}\"|" \
-            -e "T" \
             homebrew-tap/Formula/imole.rb
 
-          # Fix second sha256 for amd64 (can't use same placeholder approach)
-          sed -i '' "s|sha256 \"${ARM_SHA}\"|sha256 \"${AMD_SHA}\"|2" homebrew-tap/Formula/imole.rb 2>/dev/null || true
+          # Update sha256 values (first occurrence = arm64, second = amd64)
+          awk -v arm="$ARM_SHA" -v amd="$AMD_SHA" '
+            /sha256/ && !arm_done { sub(/sha256 ".*"/, "sha256 \"" arm "\""); arm_done=1 }
+            /sha256/ && arm_done && !amd_done { sub(/sha256 ".*"/, "sha256 \"" amd "\""); amd_done=1 }
+            { print }
+          ' homebrew-tap/Formula/imole.rb > /tmp/imole.rb.tmp
+          mv /tmp/imole.rb.tmp homebrew-tap/Formula/imole.rb
 
-          # Show diff
-          diff homebrew-tap/Formula/imole.rb.bak homebrew-tap/Formula/imole.rb || true
+          diff homebrew-tap/Formula/imole.rb.bak homebrew-tap/Formula/imole.rb 2>/dev/null || true
 
       - name: Commit and push
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Formula/imole.rb
+          git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "imole ${{ steps.version.outputs.version }}"
           git push origin master

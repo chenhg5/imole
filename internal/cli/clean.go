@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/chenhg5/imole/internal/backup"
+	"github.com/chenhg5/imole/internal/history"
 	"github.com/chenhg5/imole/internal/human"
 	"github.com/chenhg5/imole/internal/provider"
 )
@@ -121,6 +122,14 @@ func (a *App) runCleanFromManifest(ctx context.Context, manifestPath string, pro
 			failed++
 		}
 	}
+
+	history.Append(history.Entry{
+		Kind:         history.KindClean,
+		Files:        deleted,
+		Size:         deletedSize,
+		ManifestPath: absPath(manifestPath),
+		Failed:       failed,
+	})
 
 	fmt.Fprintln(a.out)
 	fmt.Fprintln(a.out, "Delete complete")

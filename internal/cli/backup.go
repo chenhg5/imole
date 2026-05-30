@@ -10,6 +10,7 @@ import (
 
 	"github.com/chenhg5/imole/internal/backup"
 	"github.com/chenhg5/imole/internal/filter"
+	"github.com/chenhg5/imole/internal/history"
 	"github.com/chenhg5/imole/internal/human"
 	"github.com/chenhg5/imole/internal/media"
 	"github.com/chenhg5/imole/internal/provider"
@@ -73,6 +74,15 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	if a.shouldJSON() || jsonMode {
 		return a.outputJSON(manifest, fields)
 	}
+	// Record the operation before printing so the log is written even if output fails.
+	history.Append(history.Entry{
+		Kind:        history.KindBackup,
+		Files:       manifest.Summary.CopiedFiles,
+		Size:        manifest.Summary.CopiedSize,
+		Destination: absPath(to),
+		Failed:      manifest.Summary.FailedFiles,
+	})
+
 	fmt.Fprintln(a.out, "Backup complete")
 	fmt.Fprintf(a.out, "Destination: %s\n", absPath(to))
 	fmt.Fprintf(a.out, "Selected:    %d files · %s\n", manifest.Summary.SelectedFiles, human.Bytes(manifest.Summary.SelectedSize))

@@ -17,7 +17,9 @@ Usage:
   imole backup --to PATH [filters]      Back up media and write manifest
   imole report --manifest PATH          Summarize a backup manifest
   imole guide [topic]                   Show cleanup guidance
-  imole clean                           Explain safe cleanup boundaries
+  imole clean   --manifest PATH         Delete verified files from iPhone
+  imole history [--limit N]            Show recent backup and delete operations
+  imole update  [--check] [--nightly]  Update imole to the latest release
 
 Commands:
   doctor   Check system dependencies and device connectivity
@@ -27,7 +29,9 @@ Commands:
   backup   Copy selected media to local destination with verification
   report   Summarize a backup manifest file
   guide    Show cleanup guidance for specific topics
-  clean    Explain safe cleanup boundaries
+  clean    Delete verified files from iPhone using a backup manifest
+  history  Show recent backup and delete operations
+  update   Update imole to the latest release
 
 Common flags:
   --provider auto|filesystem|imagecapture|gphoto

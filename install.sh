@@ -1,6 +1,6 @@
 #!/bin/bash
-# imole - Installer script
-# Downloads source tarball (contains pre-built binary) and installs to INSTALL_DIR.
+# imole - Installer script (macOS / Linux / Windows Git-Bash)
+# Downloads pre-built binary and installs to INSTALL_DIR.
 
 set -euo pipefail
 
@@ -23,19 +23,54 @@ log_success() { echo -e "${GREEN}${ICON_OK}${NC} $1"; }
 log_error() { echo -e "${RED}${ICON_ERR}${NC} $1"; }
 log_warn() { echo -e "${YELLOW}WARNING:${NC} $1"; }
 
-INSTALL_DIR="/usr/local/bin"
 REPO="chenhg5/imole"
 BINARY_NAME="imole"
+INSTALL_DIR=""
+
+# Detect OS
+detect_os() {
+    case "$OSTYPE" in
+        darwin*)  echo "darwin" ;;
+        linux*)   echo "linux" ;;
+        msys*|cygwin*|win32*) echo "windows" ;;
+        *)        echo "unknown" ;;
+    esac
+}
+
+# Detect arch
+detect_arch() {
+    local arch
+    arch="$(uname -m)"
+    case "$arch" in
+        arm64|aarch64)  echo "arm64" ;;
+        x86_64|amd64)   echo "amd64" ;;
+        *)              echo "amd64" ;;
+    esac
+}
+
+# Set default INSTALL_DIR based on OS
+default_install_dir() {
+    local os="$1"
+    case "$os" in
+        darwin|linux)
+            echo "/usr/local/bin"
+            ;;
+        windows)
+            if [[ -n "${LOCALAPPDATA:-}" ]]; then
+                echo "$LOCALAPPDATA/imole/bin"
+            else
+                echo "$HOME/AppData/Local/imole/bin"
+            fi
+            ;;
+        *)
+            echo "/usr/local/bin"
+            ;;
+    esac
+}
 
 # Check if sudo is needed
 needs_sudo() {
-    if [[ -e "$INSTALL_DIR" ]]; then
-        [[ ! -w "$INSTALL_DIR" ]]
-        return
-    fi
-    local parent_dir
-    parent_dir="$(dirname "$INSTALL_DIR")"
-    [[ ! -w "$parent_dir" ]]
+    [[ ! -w "$INSTALL_DIR" ]] && [[ ! -w "$(dirname "$INSTALL_DIR")" ]]
 }
 
 maybe_sudo() {
@@ -56,7 +91,6 @@ verify_sudo() {
 
 # Get latest release tag
 get_latest_tag() {
-    # Try GitHub API
     local tag
     tag=$(curl -fsSL --connect-timeout 5 --max-time 10 \
         "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null |
@@ -67,7 +101,6 @@ get_latest_tag() {
         return 0
     fi
 
-    # Fallback: git ls-remote
     if command -v git > /dev/null 2>&1; then
         tag=$(git ls-remote --tags --refs "https://github.com/${REPO}.git" 2>/dev/null |
             awk -F/ '{print $NF}' |
@@ -83,40 +116,36 @@ get_latest_tag() {
     return 1
 }
 
-# Detect arch
-get_arch() {
-    local arch
-    arch="$(uname -m)"
-    if [[ "$arch" == "arm64" ]]; then
-        echo "darwin-arm64"
-    else
-        echo "darwin-amd64"
-    fi
-}
-
-# Download source tarball and extract binary
+# Download and install
 download_and_install() {
     local tag="$1"
-    local arch="$2"
+    local os="$2"
+    local arch="$3"
+    local asset_name="${BINARY_NAME}-${os}-${arch}"
+    [[ "$os" == "windows" ]] && asset_name="${asset_name}.exe"
+
     local tmp
     tmp="$(mktemp -d)"
 
-    # Try downloading the source tarball (contains pre-built binary)
+    # Try source tarball first
     local url="https://github.com/${REPO}/archive/refs/tags/${tag}.tar.gz"
-    log_info "Fetching ${BINARY_NAME} ${tag}..."
+    log_info "Fetching ${BINARY_NAME} ${tag} for ${os}/${arch}..."
 
     if curl -fsSL --connect-timeout 10 --max-time 120 -o "$tmp/source.tar.gz" "$url" 2>/dev/null; then
         if tar -xzf "$tmp/source.tar.gz" -C "$tmp" 2>/dev/null; then
             local extracted_dir
             extracted_dir=$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -n 1)
 
-            if [[ -n "$extracted_dir" && -f "$extracted_dir/bin/${BINARY_NAME}-${arch}" ]]; then
-                verify_sudo
+            if [[ -n "$extracted_dir" && -f "$extracted_dir/bin/${asset_name}" ]]; then
                 mkdir -p "$INSTALL_DIR" 2>/dev/null || true
-                # Atomic install: copy to .new then move
-                maybe_sudo cp "$extracted_dir/bin/${BINARY_NAME}-${arch}" "$INSTALL_DIR/${BINARY_NAME}.new"
-                maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
-                maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+                if [[ "$os" == "windows" ]]; then
+                    cp "$extracted_dir/bin/${asset_name}" "$INSTALL_DIR/${BINARY_NAME}.exe"
+                else
+                    verify_sudo
+                    maybe_sudo cp "$extracted_dir/bin/${asset_name}" "$INSTALL_DIR/${BINARY_NAME}.new"
+                    maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
+                    maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+                fi
                 rm -rf "$tmp"
                 log_success "Installed ${BINARY_NAME} ${tag} to $INSTALL_DIR"
                 return 0
@@ -124,30 +153,40 @@ download_and_install() {
         fi
     fi
 
-    # Fallback: try direct release asset download
-    local asset_url="https://github.com/${REPO}/releases/download/${tag}/${BINARY_NAME}-${arch}"
+    # Fallback: release asset
+    local asset_url="https://github.com/${REPO}/releases/download/${tag}/${asset_name}"
     log_info "Trying release asset..."
-    if curl -fSL --connect-timeout 10 --max-time 120 -o "$tmp/${BINARY_NAME}" "$asset_url" 2>/dev/null; then
-        verify_sudo
+    if curl -fSL --connect-timeout 10 --max-time 120 -o "$tmp/${asset_name}" "$asset_url" 2>/dev/null; then
         mkdir -p "$INSTALL_DIR" 2>/dev/null || true
-        maybe_sudo cp "$tmp/${BINARY_NAME}" "$INSTALL_DIR/${BINARY_NAME}.new"
-        maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
-        maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+        if [[ "$os" == "windows" ]]; then
+            cp "$tmp/${asset_name}" "$INSTALL_DIR/${BINARY_NAME}.exe"
+        else
+            verify_sudo
+            maybe_sudo cp "$tmp/${asset_name}" "$INSTALL_DIR/${BINARY_NAME}.new"
+            maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
+            maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+        fi
         rm -rf "$tmp"
         log_success "Installed ${BINARY_NAME} ${tag} to $INSTALL_DIR"
         return 0
     fi
 
-    # Fallback: git clone and build
+    # Fallback: go build
     if command -v go > /dev/null 2>&1; then
         log_warn "Download failed, building from source..."
         if git clone --depth=1 "https://github.com/${REPO}.git" "$tmp/src" 2>/dev/null; then
-            if (cd "$tmp/src" && go build -ldflags="-s -w" -o "${BINARY_NAME}" ./cmd/imole) 2>/dev/null; then
-                verify_sudo
+            local out_name="${BINARY_NAME}"
+            [[ "$os" == "windows" ]] && out_name="${BINARY_NAME}.exe"
+            if (cd "$tmp/src" && go build -ldflags="-s -w" -o "$out_name" ./cmd/imole) 2>/dev/null; then
                 mkdir -p "$INSTALL_DIR" 2>/dev/null || true
-                maybe_sudo cp "$tmp/src/${BINARY_NAME}" "$INSTALL_DIR/${BINARY_NAME}.new"
-                maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
-                maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+                if [[ "$os" == "windows" ]]; then
+                    cp "$tmp/src/$out_name" "$INSTALL_DIR/${BINARY_NAME}.exe"
+                else
+                    verify_sudo
+                    maybe_sudo cp "$tmp/src/$out_name" "$INSTALL_DIR/${BINARY_NAME}.new"
+                    maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
+                    maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+                fi
                 rm -rf "$tmp"
                 log_success "Built and installed ${BINARY_NAME} to $INSTALL_DIR"
                 return 0
@@ -158,15 +197,18 @@ download_and_install() {
     rm -rf "$tmp"
     log_error "Failed to install ${BINARY_NAME}"
     echo ""
-    echo "Manual install: download from https://github.com/${REPO}/releases/tag/${tag}"
+    echo "Manual install: https://github.com/${REPO}/releases/tag/${tag}"
     return 1
 }
 
 # Verify installation
 verify() {
-    if [[ -x "$INSTALL_DIR/${BINARY_NAME}" ]]; then
+    local binary="$INSTALL_DIR/${BINARY_NAME}"
+    [[ "$(detect_os)" == "windows" ]] && binary="${binary}.exe"
+
+    if [[ -x "$binary" ]]; then
         local ver
-        ver=$("$INSTALL_DIR/${BINARY_NAME}" --version 2>/dev/null || echo "unknown")
+        ver=$("$binary" --version 2>/dev/null || echo "unknown")
         log_success "${BINARY_NAME} ${ver} installed successfully"
     else
         log_error "Installation verification failed"
@@ -174,10 +216,35 @@ verify() {
     fi
 }
 
+# PATH hint
+path_hint() {
+    local os="$1"
+    if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+        echo ""
+        log_warn "$INSTALL_DIR is not in your PATH"
+        case "$os" in
+            darwin)
+                echo "  Add to ~/.zshrc: export PATH=\"$INSTALL_DIR:\$PATH\""
+                ;;
+            linux)
+                echo "  Add to ~/.bashrc: export PATH=\"$INSTALL_DIR:\$PATH\""
+                ;;
+            windows)
+                echo "  Add to System Environment Variables or run:"
+                echo "  setx PATH \"%PATH%;$INSTALL_DIR\""
+                ;;
+        esac
+    fi
+}
+
 # Main
 main() {
-    if [[ "$OSTYPE" != "darwin"* ]]; then
-        log_error "imole is designed for macOS only"
+    local os
+    os="$(detect_os)"
+
+    if [[ "$os" == "unknown" ]]; then
+        log_error "Unsupported OS: $OSTYPE"
+        echo "Supported: macOS (darwin), Linux, Windows (Git-Bash/WSL)"
         exit 1
     fi
 
@@ -193,8 +260,10 @@ main() {
                 echo "Usage: $0 [--prefix DIR] [VERSION]"
                 echo ""
                 echo "Options:"
-                echo "  --prefix DIR   Install to DIR (default: /usr/local/bin)"
+                echo "  --prefix DIR   Install to DIR"
                 echo "  VERSION        Version tag (e.g., v0.1.0)"
+                echo ""
+                echo "Supported: macOS, Linux, Windows (Git-Bash/WSL)"
                 exit 0
                 ;;
             v*)
@@ -208,6 +277,8 @@ main() {
         esac
     done
 
+    [[ -z "$INSTALL_DIR" ]] && INSTALL_DIR="$(default_install_dir "$os")"
+
     if [[ -z "$tag" ]]; then
         log_info "Detecting latest version..."
         if ! tag="$(get_latest_tag)"; then
@@ -218,22 +289,16 @@ main() {
     fi
 
     local arch
-    arch="$(get_arch)"
+    arch="$(detect_arch)"
 
-    download_and_install "$tag" "$arch"
+    download_and_install "$tag" "$os" "$arch"
     verify
-
-    # PATH hint
-    if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-        echo ""
-        log_warn "$INSTALL_DIR is not in your PATH"
-        echo "Add to ~/.zshrc: export PATH=\"$INSTALL_DIR:\$PATH\""
-    fi
+    path_hint "$os"
 
     echo ""
-    echo "Usage: imole --help"
-    echo "       imole scan"
-    echo "       imole backup --to /path/to/backup"
+    echo "Usage: ${BINARY_NAME} --help"
+    echo "       ${BINARY_NAME} scan"
+    echo "       ${BINARY_NAME} backup --to /path/to/backup"
 }
 
 main "$@"

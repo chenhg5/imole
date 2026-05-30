@@ -102,9 +102,28 @@ var commandSchemas = map[string]SchemaCommand{
 	},
 	"clean": {
 		Name:        "clean",
-		Description: "Explain safe cleanup boundaries",
+		Description: "Delete verified files from iPhone using a backup manifest",
 		Flags: []SchemaFlag{
-			{Name: "experimental", Type: "bool", Default: "false", Description: "show experimental cleanup status"},
+			{Name: "manifest", Type: "string", Required: false, Description: "path to manifest.json from a previous backup; if omitted, prints recommended flow"},
+			{Name: "provider", Type: "string", Default: "auto", Description: "deletion provider: auto, imagecapture (macOS only)"},
+			{Name: "dry-run", Type: "bool", Default: "false", Description: "preview deletion without removing files (exit 10 = safe to proceed)"},
+			{Name: "yes", Type: "bool", Default: "false", Description: "skip confirmation prompt; useful for scripting"},
+		},
+	},
+	"history": {
+		Name:        "history",
+		Description: "Show recent backup and delete operations",
+		Flags: []SchemaFlag{
+			{Name: "limit", Type: "int", Default: "20", Description: "maximum number of entries to show"},
+			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
+		},
+	},
+	"update": {
+		Name:        "update",
+		Description: "Update imole to the latest release",
+		Flags: []SchemaFlag{
+			{Name: "check", Type: "bool", Default: "false", Description: "check for updates without installing"},
+			{Name: "nightly", Type: "bool", Default: "false", Description: "install latest unreleased build from main branch (requires go)"},
 		},
 	},
 	"schema": {
