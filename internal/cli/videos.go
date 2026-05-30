@@ -10,38 +10,38 @@ import (
 )
 
 func (a *App) runVideos(ctx context.Context, args []string) int {
-	var providerName, source, olderThan, largeThan string
+	var providerName, source, only, olderThan, largeThan, fields string
 	var top int
 	var jsonMode bool
 	fs := flagSet("videos")
 	addProviderFlags(fs, &providerName, &source)
-	fs.StringVar(&olderThan, "older-than", "", "show videos older than an age, e.g. 90d, 1y")
-	fs.StringVar(&largeThan, "large-than", "", "show videos larger than a size, e.g. 300MB")
+	addFilterFlags(fs, &only, &olderThan, &largeThan)
 	fs.IntVar(&top, "top", 20, "number of videos to show")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
+	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
 	if err := parseFlags(fs, args); err != nil {
 		a.printError(usageError(err.Error()))
 		return ExitUsage
 	}
-	f, err := parseFilter("videos", olderThan, largeThan)
+	f, err := parseFilter(only, olderThan, largeThan)
 	if err != nil {
 		a.printError(&Error{
 			Code:       "usage_error",
 			Message:    err.Error(),
-			Suggestion: "Use --only photos|videos",
+			Suggestion: "Use --only photos|videos, --older-than 90d|6m|1y, --large-than 500MB|1GB",
 			Retryable:  false,
 		})
 		return ExitUsage
 	}
 	result, err := scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
 	if err != nil {
-		a.printError(runtimeError("scan_failed", err.Error(), "", true))
+		a.printError(runtimeError("scan_failed", err.Error(), "Try: imole videos --source /path/to/DCIM", true))
 		return ExitError
 	}
 	filtered := provider.FilteredItems(result, f)
 	videos := media.TopVideos(filtered, top)
 	if a.shouldJSON() || jsonMode {
-		return a.writeJSON(videos)
+		return a.outputJSON(videos, fields)
 	}
 	fmt.Fprintf(a.out, "Top %d Videos\n\n", len(videos))
 	for i, item := range videos {

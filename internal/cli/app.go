@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 const Version = "0.1.0"
 
 type App struct {
-	out     io.Writer
-	err     io.Writer
-	isTTY   bool
+	out   io.Writer
+	err   io.Writer
+	isTTY bool
 }
 
 func New(out, err io.Writer) *App {
@@ -85,6 +86,84 @@ func (a *App) printError(err *Error) {
 
 func (a *App) shouldJSON() bool {
 	return !a.isTTY
+}
+
+func (a *App) outputJSON(v any, fields string) int {
+	if fields == "" {
+		return a.writeJSON(v)
+	}
+	return a.writeJSONFields(v, fields)
+}
+
+// writeJSONFields extracts only the specified dot-path fields from v and outputs them.
+// Example: fields="summary.total_files,summary.photo_files" → {"summary":{"total_files":42,"photo_files":30}}
+func (a *App) writeJSONFields(v any, fields string) int {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return ExitError
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		// If v is not an object (e.g. array), fall back to full output
+		return a.writeJSON(v)
+	}
+
+	result := make(map[string]any)
+	for _, field := range strings.Split(fields, ",") {
+		field = strings.TrimSpace(field)
+		if field == "" {
+			continue
+		}
+		val := getNestedValue(m, field)
+		setNestedValue(result, field, val)
+	}
+
+	enc := json.NewEncoder(a.out)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(result); err != nil {
+		return ExitError
+	}
+	return ExitSuccess
+}
+
+// getNestedValue traverses a map using dot-separated path.
+func getNestedValue(m map[string]any, path string) any {
+	parts := strings.SplitN(path, ".", 2)
+	val, ok := m[parts[0]]
+	if !ok {
+		return nil
+	}
+	if len(parts) == 1 {
+		return val
+	}
+	if sub, ok := val.(map[string]any); ok {
+		return getNestedValue(sub, parts[1])
+	}
+	return nil
+}
+
+// setNestedValue sets a value in a nested map structure using dot-separated path.
+func setNestedValue(m map[string]any, path string, val any) {
+	parts := strings.SplitN(path, ".", 2)
+	if len(parts) == 1 {
+		m[parts[0]] = val
+		return
+	}
+	sub, ok := m[parts[0]].(map[string]any)
+	if !ok {
+		sub = make(map[string]any)
+		m[parts[0]] = sub
+	}
+	setNestedValue(sub, parts[1], val)
+}
+
+func (a *App) writeJSON(v any) int {
+	enc := json.NewEncoder(a.out)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(v); err != nil {
+		return ExitError
+	}
+	return ExitSuccess
 }
 
 func usageError(msg string) *Error {

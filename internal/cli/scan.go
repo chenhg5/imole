@@ -4,49 +4,38 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/chenhg5/imole/internal/filter"
 	"github.com/chenhg5/imole/internal/human"
 )
 
 func (a *App) runScan(ctx context.Context, args []string) int {
-	var providerName, source, largeThan, oldAgeRaw string
+	var providerName, source, only, largeThan, oldAgeRaw, fields string
 	var jsonMode bool
 	fs := flagSet("scan")
 	addProviderFlags(fs, &providerName, &source)
-	fs.StringVar(&largeThan, "large-than", "500MB", "large file threshold")
-	fs.StringVar(&oldAgeRaw, "older-than", "1y", "old media threshold")
+	addFilterFlags(fs, &only, &oldAgeRaw, &largeThan)
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
+	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output, e.g. summary.total_files,summary.photo_files")
 	if err := parseFlags(fs, args); err != nil {
 		a.printError(usageError(err.Error()))
 		return ExitUsage
 	}
-	large, err := filter.ParseSize(largeThan)
+	f, err := parseFilter(only, oldAgeRaw, largeThan)
 	if err != nil {
 		a.printError(&Error{
 			Code:       "usage_error",
-			Message:    fmt.Sprintf("invalid --large-than value: %s", err.Error()),
-			Suggestion: "Use format like: 500MB, 1GB, 2GB",
+			Message:    err.Error(),
+			Suggestion: "Use --only photos|videos, --older-than 90d|6m|1y, --large-than 500MB|1GB",
 			Retryable:  false,
 		})
 		return ExitUsage
 	}
-	oldAge, err := filter.ParseAge(oldAgeRaw)
+	result, err := scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
 	if err != nil {
-		a.printError(&Error{
-			Code:       "usage_error",
-			Message:    fmt.Sprintf("invalid --older-than value: %s", err.Error()),
-			Suggestion: "Use format like: 90d, 6m, 1y",
-			Retryable:  false,
-		})
-		return ExitUsage
-	}
-	result, err := scanFromFlags(ctx, providerName, source, large, oldAge)
-	if err != nil {
-		a.printError(runtimeError("scan_failed", err.Error(), "", true))
+		a.printError(runtimeError("scan_failed", err.Error(), "Try: imole scan --source /path/to/DCIM", true))
 		return ExitError
 	}
 	if a.shouldJSON() || jsonMode {
-		return a.writeJSON(result)
+		return a.outputJSON(result, fields)
 	}
 
 	s := result.Summary

@@ -10,11 +10,12 @@ import (
 )
 
 func (a *App) runReport(_ context.Context, args []string) int {
-	var manifestPath string
+	var manifestPath, fields string
 	var jsonMode bool
 	fs := flagSet("report")
 	fs.StringVar(&manifestPath, "manifest", backup.ManifestName, "manifest path")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
+	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
 	if err := parseFlags(fs, args); err != nil {
 		a.printError(usageError(err.Error()))
 		return ExitUsage
@@ -26,7 +27,7 @@ func (a *App) runReport(_ context.Context, args []string) int {
 	}
 	summary := report.FromManifest(manifest)
 	if a.shouldJSON() || jsonMode {
-		return a.writeJSON(summary)
+		return a.outputJSON(summary, fields)
 	}
 	fmt.Fprintln(a.out, "iMole Backup Report")
 	fmt.Fprintf(a.out, "Manifest: %s\n", absPath(manifestPath))

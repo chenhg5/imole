@@ -2,13 +2,12 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 )
 
 type SchemaCommand struct {
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
 	Flags       []SchemaFlag `json:"flags,omitempty"`
 }
 
@@ -25,7 +24,10 @@ var commandSchemas = map[string]SchemaCommand{
 	"doctor": {
 		Name:        "doctor",
 		Description: "Check device and local dependencies",
-		Flags:       []SchemaFlag{},
+		Flags: []SchemaFlag{
+			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
+			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output, e.g. device.name,device.udid"},
+		},
 	},
 	"scan": {
 		Name:        "scan",
@@ -33,17 +35,25 @@ var commandSchemas = map[string]SchemaCommand{
 		Flags: []SchemaFlag{
 			{Name: "provider", Type: "string", Default: "auto", Description: "media provider: auto, filesystem, imagecapture, gphoto"},
 			{Name: "source", Type: "string", Default: "", Description: "scan an existing mounted media path; implies filesystem provider"},
+			{Name: "only", Type: "string", Default: "all", Enum: []string{"all", "photos", "videos"}, Description: "media filter: all, photos, videos"},
 			{Name: "large-than", Type: "string", Default: "500MB", Description: "include media larger than a size, e.g. 500MB, 1GB"},
 			{Name: "older-than", Type: "string", Default: "1y", Description: "include media older than an age, e.g. 90d, 6m, 1y"},
 			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
+			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output, e.g. summary.total_files"},
 		},
 	},
 	"videos": {
 		Name:        "videos",
 		Description: "Show largest videos",
 		Flags: []SchemaFlag{
-			{Name: "top", Type: "int", Default: "10", Description: "number of largest videos to show"},
+			{Name: "provider", Type: "string", Default: "auto", Description: "media provider: auto, filesystem, imagecapture, gphoto"},
+			{Name: "source", Type: "string", Default: "", Description: "scan an existing mounted media path"},
+			{Name: "only", Type: "string", Default: "all", Enum: []string{"all", "photos", "videos"}, Description: "media filter: all, photos, videos"},
+			{Name: "older-than", Type: "string", Default: "", Description: "show videos older than an age, e.g. 90d, 1y"},
+			{Name: "large-than", Type: "string", Default: "", Description: "show videos larger than a size, e.g. 300MB"},
+			{Name: "top", Type: "int", Default: "20", Description: "number of videos to show"},
 			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
+			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output"},
 		},
 	},
 	"backup": {
@@ -54,10 +64,11 @@ var commandSchemas = map[string]SchemaCommand{
 			{Name: "source", Type: "string", Default: "", Description: "scan an existing mounted media path"},
 			{Name: "to", Type: "string", Required: true, Description: "backup destination directory"},
 			{Name: "dry-run", Type: "bool", Default: "false", Description: "preview backup without copying"},
-			{Name: "only", Type: "string", Default: "all", Description: "media filter: all, photos, videos"},
+			{Name: "only", Type: "string", Default: "all", Enum: []string{"all", "photos", "videos"}, Description: "media filter: all, photos, videos"},
 			{Name: "older-than", Type: "string", Default: "", Description: "include media older than an age, e.g. 90d"},
 			{Name: "large-than", Type: "string", Default: "", Description: "include media larger than a size, e.g. 500MB"},
 			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
+			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output"},
 		},
 	},
 	"report": {
@@ -66,6 +77,7 @@ var commandSchemas = map[string]SchemaCommand{
 		Flags: []SchemaFlag{
 			{Name: "manifest", Type: "string", Required: true, Description: "path to manifest.json"},
 			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
+			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output"},
 		},
 	},
 	"guide": {
@@ -120,13 +132,4 @@ func (a *App) runSchema(ctx context.Context, args []string) int {
 		return ExitNotFound
 	}
 	return a.writeJSON(schema)
-}
-
-func (a *App) writeJSON(v any) int {
-	enc := json.NewEncoder(a.out)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(v); err != nil {
-		return ExitError
-	}
-	return ExitSuccess
 }

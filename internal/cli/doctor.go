@@ -9,8 +9,10 @@ import (
 
 func (a *App) runDoctor(ctx context.Context, args []string) int {
 	var jsonMode bool
+	var fields string
 	fs := flagSet("doctor")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
+	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
 	if err := parseFlags(fs, args); err != nil {
 		a.printError(usageError(err.Error()))
 		return ExitUsage
@@ -18,7 +20,7 @@ func (a *App) runDoctor(ctx context.Context, args []string) int {
 
 	report := device.Check(ctx)
 	if a.shouldJSON() || jsonMode {
-		return a.writeJSON(report)
+		return a.outputJSON(report, fields)
 	}
 
 	fmt.Fprintln(a.out, "iMole Doctor")

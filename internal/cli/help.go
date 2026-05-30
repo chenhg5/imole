@@ -33,10 +33,12 @@ Common flags:
   --only all|photos|videos
   --older-than 90d|6m|1y
   --large-than 500MB|1GB
+  --fields path.to.field,path.to.field2  (JSON field filtering)
 
 Output:
   JSON is output automatically when stdout is not a terminal.
   Use --json to force JSON output in terminal mode.
+  Use --fields to select specific JSON fields (dot-path notation).
 
 Exit codes:
   0   Success
@@ -48,7 +50,10 @@ Exit codes:
 
 Examples:
   # Scan iPhone media
-  imole scan --json | jq '.total_files'
+  imole scan --json | jq '.summary'
+
+  # Scan with field filtering
+  imole scan --json --fields summary.total_files,summary.photo_files
 
   # Find largest videos
   imole videos --top 30 --json
@@ -59,10 +64,11 @@ Examples:
   # Execute backup
   imole backup --to /path/to/backup --only videos --older-than 90d
 
-  # Check manifest
-  imole report --manifest /path/to/backup/manifest.json --json
+  # Check manifest with field filtering
+  imole report --manifest /path/to/backup/manifest.json --json --fields files_count,verified_size
 
 Notes:
   iMole v0.1 focuses on diagnosis, backup, verification, and guidance.
   It does not automatically delete iPhone Photos library content by default.
+  Double-dash (--flag) and single-dash (-flag) are both supported for all flags.
 `

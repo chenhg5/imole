@@ -16,13 +16,14 @@ import (
 )
 
 func (a *App) runBackup(ctx context.Context, args []string) int {
-	var providerName, source, to, only, olderThan, largeThan string
+	var providerName, source, to, only, olderThan, largeThan, fields string
 	var dryRun, jsonMode bool
 	fs := flagSet("backup")
 	addProviderFlags(fs, &providerName, &source)
 	fs.StringVar(&to, "to", "", "backup destination")
 	fs.BoolVar(&dryRun, "dry-run", false, "preview backup without copying")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
+	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
 	addFilterFlags(fs, &only, &olderThan, &largeThan)
 	if err := parseFlags(fs, args); err != nil {
 		a.printError(usageError(err.Error()))
@@ -70,7 +71,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	}
 
 	if a.shouldJSON() || jsonMode {
-		return a.writeJSON(manifest)
+		return a.outputJSON(manifest, fields)
 	}
 	fmt.Fprintln(a.out, "Backup complete")
 	fmt.Fprintf(a.out, "Destination: %s\n", absPath(to))
