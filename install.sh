@@ -22,11 +22,8 @@ log_success() { echo -e "${GREEN}${ICON_OK}${NC} $1"; }
 log_error() { echo -e "${RED}${ICON_ERR}${NC} $1"; }
 log_warn() { echo -e "${YELLOW}WARNING:${NC} $1"; }
 
-# Default to ~/bin to avoid sudo; fall back to /usr/local/bin if ~/bin is not in PATH
+# Default to ~/bin to avoid sudo
 INSTALL_DIR="${HOME}/bin"
-if [[ ":$PATH:" != *":${HOME}/bin:"* ]]; then
-    INSTALL_DIR="/usr/local/bin"
-fi
 BINARY_NAME="imole"
 REPO="chenhg5/imole"
 
@@ -164,6 +161,7 @@ download_binary() {
     for url in "${urls[@]}"; do
         log_info "Trying: ${url}..."
         if curl -fSL --connect-timeout 10 --max-time 120 -o "$tmp_file" "$url" 2>/dev/null; then
+            mkdir -p "$INSTALL_DIR" 2>/dev/null || true
             maybe_sudo cp "$tmp_file" "$INSTALL_DIR/${BINARY_NAME}"
             maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}"
             rm -f "$tmp_file"
@@ -242,11 +240,14 @@ main() {
 
     verify
 
-    # PATH hint
+    # Ensure ~/bin is in PATH
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
         echo ""
         log_warn "$INSTALL_DIR is not in your PATH"
-        echo "Add to ~/.zshrc: export PATH=\"$INSTALL_DIR:\$PATH\""
+        echo "Add this to your ~/.zshrc:"
+        echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+        echo ""
+        echo "Then run: source ~/.zshrc"
     fi
 
     echo ""
