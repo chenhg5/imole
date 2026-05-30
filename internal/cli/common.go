@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -13,12 +12,6 @@ import (
 	"github.com/chenhg5/imole/internal/media"
 	"github.com/chenhg5/imole/internal/provider"
 )
-
-func writeJSON(w io.Writer, v any) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
-}
 
 func parseFilter(only, olderThan, largeThan string) (filter.Filter, error) {
 	f := filter.Default()

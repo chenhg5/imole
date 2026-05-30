@@ -8,7 +8,7 @@ import (
 	"github.com/chenhg5/imole/internal/human"
 )
 
-func (a *App) runScan(ctx context.Context, args []string) error {
+func (a *App) runScan(ctx context.Context, args []string) int {
 	var providerName, source, largeThan, oldAgeRaw string
 	var jsonMode bool
 	fs := flagSet("scan")
@@ -17,22 +17,36 @@ func (a *App) runScan(ctx context.Context, args []string) error {
 	fs.StringVar(&oldAgeRaw, "older-than", "1y", "old media threshold")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	if err := parseFlags(fs, args); err != nil {
-		return err
+		a.printError(usageError(err.Error()))
+		return ExitUsage
 	}
 	large, err := filter.ParseSize(largeThan)
 	if err != nil {
-		return err
+		a.printError(&Error{
+			Code:       "usage_error",
+			Message:    fmt.Sprintf("invalid --large-than value: %s", err.Error()),
+			Suggestion: "Use format like: 500MB, 1GB, 2GB",
+			Retryable:  false,
+		})
+		return ExitUsage
 	}
 	oldAge, err := filter.ParseAge(oldAgeRaw)
 	if err != nil {
-		return err
+		a.printError(&Error{
+			Code:       "usage_error",
+			Message:    fmt.Sprintf("invalid --older-than value: %s", err.Error()),
+			Suggestion: "Use format like: 90d, 6m, 1y",
+			Retryable:  false,
+		})
+		return ExitUsage
 	}
 	result, err := scanFromFlags(ctx, providerName, source, large, oldAge)
 	if err != nil {
-		return err
+		a.printError(runtimeError("scan_failed", err.Error(), "", true))
+		return ExitError
 	}
-	if jsonMode {
-		return writeJSON(a.out, result)
+	if a.shouldJSON() || jsonMode {
+		return a.writeJSON(result)
 	}
 
 	s := result.Summary
@@ -54,5 +68,5 @@ func (a *App) runScan(ctx context.Context, args []string) error {
 	} else {
 		fmt.Fprintln(a.out, "  imole backup --source /path/to/DCIM --to /path/to/backup --only videos --older-than 90d")
 	}
-	return nil
+	return ExitSuccess
 }

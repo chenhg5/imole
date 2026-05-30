@@ -15,7 +15,7 @@ import (
 	"github.com/chenhg5/imole/internal/provider"
 )
 
-func (a *App) runBackup(ctx context.Context, args []string) error {
+func (a *App) runBackup(ctx context.Context, args []string) int {
 	var providerName, source, to, only, olderThan, largeThan string
 	var dryRun, jsonMode bool
 	fs := flagSet("backup")
@@ -25,20 +25,34 @@ func (a *App) runBackup(ctx context.Context, args []string) error {
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	addFilterFlags(fs, &only, &olderThan, &largeThan)
 	if err := parseFlags(fs, args); err != nil {
-		return err
+		a.printError(usageError(err.Error()))
+		return ExitUsage
 	}
 	if to == "" {
-		return usageError("backup requires --to PATH")
+		a.printError(usageError("backup requires --to PATH"))
+		return ExitUsage
 	}
 	f, err := parseFilter(only, olderThan, largeThan)
 	if err != nil {
-		return err
+		a.printError(&Error{
+			Code:       "usage_error",
+			Message:    err.Error(),
+			Suggestion: "Use --only photos|videos, --older-than 90d|6m|1y, --large-than 500MB|1GB",
+			Retryable:  false,
+		})
+		return ExitUsage
 	}
 	largeThreshold := f.LargeThan
 	result, err := scanFromFlags(ctx, providerName, source, largeThreshold, f.OlderThan)
 	if err != nil {
-		return err
+		a.printError(runtimeError("scan_failed", err.Error(), "", true))
+		return ExitError
 	}
+
+	if dryRun {
+		fmt.Fprintf(a.err, "Dry-run: preview backup to %s\n", to)
+	}
+
 	var manifest backup.Manifest
 	if source == "" && (providerName == string(provider.ImageCapture) || providerName == string(provider.Auto)) {
 		manifest, err = a.runProviderBackup(ctx, result, to, f, provider.Name(providerName), dryRun)
@@ -46,34 +60,35 @@ func (a *App) runBackup(ctx context.Context, args []string) error {
 		manifest, err = backup.Run(ctx, result, backup.Options{Destination: to, Filter: f, DryRun: dryRun})
 	}
 	if err != nil {
-		return err
+		a.printError(runtimeError("backup_failed", err.Error(), "", false))
+		return ExitError
 	}
-	if jsonMode {
-		return writeJSON(a.out, manifest)
-	}
+
 	if dryRun {
-		fmt.Fprintln(a.out, "Backup preview")
-	} else {
-		fmt.Fprintln(a.out, "Backup complete")
+		fmt.Fprintf(a.err, "Dry-run complete: %d files would be copied (exit 10)\n", manifest.Summary.SelectedFiles)
+		return ExitDryRun
 	}
+
+	if a.shouldJSON() || jsonMode {
+		return a.writeJSON(manifest)
+	}
+	fmt.Fprintln(a.out, "Backup complete")
 	fmt.Fprintf(a.out, "Destination: %s\n", absPath(to))
 	fmt.Fprintf(a.out, "Selected:    %d files · %s\n", manifest.Summary.SelectedFiles, human.Bytes(manifest.Summary.SelectedSize))
 	if manifest.Summary.SelectedFiles == 0 && len(result.Items) > 0 {
 		printLargestHint(a.out, result.Items, f)
 	}
-	if dryRun && manifest.Summary.SelectedFiles > 0 {
+	if manifest.Summary.SelectedFiles > 0 {
 		printBackupCandidates(a.out, manifest, 20)
 	}
-	if !dryRun {
-		fmt.Fprintf(a.out, "Copied:      %d files · %s\n", manifest.Summary.CopiedFiles, human.Bytes(manifest.Summary.CopiedSize))
-		fmt.Fprintf(a.out, "Verified:    %d files · %s\n", manifest.Summary.VerifiedFiles, human.Bytes(manifest.Summary.VerifiedSize))
-		if manifest.Summary.FailedFiles > 0 {
-			fmt.Fprintf(a.out, "Failed:      %d files\n", manifest.Summary.FailedFiles)
-			printFirstErrors(a.out, manifest)
-		}
-		fmt.Fprintf(a.out, "Manifest:    %s\n", absPath(to)+"/"+backup.ManifestName)
+	fmt.Fprintf(a.out, "Copied:      %d files · %s\n", manifest.Summary.CopiedFiles, human.Bytes(manifest.Summary.CopiedSize))
+	fmt.Fprintf(a.out, "Verified:    %d files · %s\n", manifest.Summary.VerifiedFiles, human.Bytes(manifest.Summary.VerifiedSize))
+	if manifest.Summary.FailedFiles > 0 {
+		fmt.Fprintf(a.out, "Failed:      %d files\n", manifest.Summary.FailedFiles)
+		printFirstErrors(a.out, manifest)
 	}
-	return nil
+	fmt.Fprintf(a.out, "Manifest:    %s\n", absPath(to)+"/"+backup.ManifestName)
+	return ExitSuccess
 }
 
 func printBackupCandidates(w io.Writer, manifest backup.Manifest, limit int) {

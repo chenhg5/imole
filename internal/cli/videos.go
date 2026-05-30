@@ -9,7 +9,7 @@ import (
 	"github.com/chenhg5/imole/internal/provider"
 )
 
-func (a *App) runVideos(ctx context.Context, args []string) error {
+func (a *App) runVideos(ctx context.Context, args []string) int {
 	var providerName, source, olderThan, largeThan string
 	var top int
 	var jsonMode bool
@@ -20,24 +20,32 @@ func (a *App) runVideos(ctx context.Context, args []string) error {
 	fs.IntVar(&top, "top", 20, "number of videos to show")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	if err := parseFlags(fs, args); err != nil {
-		return err
+		a.printError(usageError(err.Error()))
+		return ExitUsage
 	}
 	f, err := parseFilter("videos", olderThan, largeThan)
 	if err != nil {
-		return err
+		a.printError(&Error{
+			Code:       "usage_error",
+			Message:    err.Error(),
+			Suggestion: "Use --only photos|videos",
+			Retryable:  false,
+		})
+		return ExitUsage
 	}
 	result, err := scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
 	if err != nil {
-		return err
+		a.printError(runtimeError("scan_failed", err.Error(), "", true))
+		return ExitError
 	}
 	filtered := provider.FilteredItems(result, f)
 	videos := media.TopVideos(filtered, top)
-	if jsonMode {
-		return writeJSON(a.out, videos)
+	if a.shouldJSON() || jsonMode {
+		return a.writeJSON(videos)
 	}
 	fmt.Fprintf(a.out, "Top %d Videos\n\n", len(videos))
 	for i, item := range videos {
 		fmt.Fprintf(a.out, "%2d. %-28s %8s  %s\n", i+1, item.Name, human.Bytes(item.Size), item.ModTime.Format("2006-01-02"))
 	}
-	return nil
+	return ExitSuccess
 }

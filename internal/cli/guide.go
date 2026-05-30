@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-func (a *App) runGuide(_ context.Context, args []string) error {
-	topic := "all"
+func (a *App) runGuide(_ context.Context, args []string) int {
+	topic := ""
 	if len(args) > 0 {
 		topic = args[0]
 	}
@@ -20,7 +20,7 @@ func (a *App) runGuide(_ context.Context, args []string) error {
 	default:
 		fmt.Fprint(a.out, fullGuide)
 	}
-	return nil
+	return ExitSuccess
 }
 
 const fullGuide = `iPhone slimming guide

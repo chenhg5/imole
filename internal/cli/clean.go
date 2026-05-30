@@ -5,17 +5,18 @@ import (
 	"fmt"
 )
 
-func (a *App) runClean(_ context.Context, args []string) error {
+func (a *App) runClean(_ context.Context, args []string) int {
 	var experimental bool
 	fs := flagSet("clean")
 	fs.BoolVar(&experimental, "experimental", false, "show experimental cleanup status")
 	if err := parseFlags(fs, args); err != nil {
-		return err
+		a.printError(usageError(err.Error()))
+		return ExitUsage
 	}
 	if experimental {
 		fmt.Fprintln(a.out, "Experimental delete is not enabled in v0.1.")
 		fmt.Fprintln(a.out, "iMole will only support deletion after manifest verification and strict DCIM-only guards.")
-		return nil
+		return ExitSuccess
 	}
 	fmt.Fprintln(a.out, "Safe cleanup mode")
 	fmt.Fprintln(a.out)
@@ -26,5 +27,5 @@ func (a *App) runClean(_ context.Context, args []string) error {
 	fmt.Fprintln(a.out, "  3. imole report --manifest /path/to/backup/manifest.json")
 	fmt.Fprintln(a.out, "  4. Delete verified imports with Image Capture or Photos")
 	fmt.Fprintln(a.out, "  5. Empty Recently Deleted on iPhone")
-	return nil
+	return ExitSuccess
 }

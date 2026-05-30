@@ -2,28 +2,45 @@ package cli
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 )
 
 const Version = "0.1.0"
 
 type App struct {
-	out io.Writer
-	err io.Writer
+	out     io.Writer
+	err     io.Writer
+	isTTY   bool
 }
 
 func New(out, err io.Writer) *App {
-	return &App{out: out, err: err}
+	return &App{out: out, err: err, isTTY: isTerminal(out)}
 }
 
-func (a *App) Run(ctx context.Context, args []string) error {
+func isTerminal(w io.Writer) bool {
+	if f, ok := w.(*os.File); ok {
+		return isTerminalFD(int(f.Fd()))
+	}
+	return false
+}
+
+// isTerminalFD checks if the given file descriptor is a terminal.
+func isTerminalFD(fd int) bool {
+	return false // stub: always false in non-interactive context
+}
+
+func (a *App) Run(ctx context.Context, args []string) int {
 	if len(args) == 0 {
-		return a.runHelp()
+		a.runHelp()
+		return ExitSuccess
 	}
 
 	switch args[0] {
+	case "schema":
+		return a.runSchema(ctx, args[1:])
 	case "doctor":
 		return a.runDoctor(ctx, args[1:])
 	case "scan":
@@ -39,44 +56,51 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	case "clean":
 		return a.runClean(ctx, args[1:])
 	case "help", "--help", "-h":
-		return a.runHelp()
+		a.runHelp()
+		return ExitSuccess
 	case "version", "--version", "-v":
 		fmt.Fprintf(a.out, "imole %s\n", Version)
-		return nil
+		return ExitSuccess
 	default:
-		return fmt.Errorf("unknown command %q\n\nRun: imole help", args[0])
+		a.printError(&Error{
+			Code:       "unknown_command",
+			Message:    fmt.Sprintf("unknown command %q", args[0]),
+			Suggestion: "Run: imole help",
+			Retryable:  false,
+		})
+		return ExitUsage
 	}
 }
 
-func (a *App) runHelp() error {
-	_, err := fmt.Fprint(a.out, `iMole - open-source iPhone slimming toolkit
-
-Usage:
-  imole doctor                         Check device and local dependencies
-  imole scan [provider flags] [--json] Scan visible iPhone media
-  imole videos [--top N]               Show largest videos
-  imole backup --to PATH [filters]     Back up media and write manifest
-  imole report --manifest PATH         Summarize a backup manifest
-  imole guide [topic]                  Show cleanup guidance
-  imole clean                          Explain safe cleanup boundaries
-
-Common filters:
-  --provider auto|filesystem|imagecapture|gphoto
-  --source PATH
-  --only all|photos|videos
-  --older-than 90d
-  --large-than 500MB
-
-Notes:
-  iMole v0.1 focuses on diagnosis, backup, verification, and guidance.
-  It does not automatically delete iPhone Photos library content by default.
-`)
-	return err
+func (a *App) printError(err *Error) {
+	if a.isTTY {
+		fmt.Fprintf(a.err, "imole: %s\n", err.Message)
+		if err.Suggestion != "" {
+			fmt.Fprintf(a.err, "Suggestion: %s\n", err.Suggestion)
+		}
+	} else {
+		json.NewEncoder(a.err).Encode(err)
+	}
 }
 
-func usageError(msg string) error {
-	if msg == "" {
-		return errors.New("invalid usage")
+func (a *App) shouldJSON() bool {
+	return !a.isTTY
+}
+
+func usageError(msg string) *Error {
+	return &Error{
+		Code:       "usage_error",
+		Message:    msg,
+		Suggestion: "Run: imole help or imole schema <command>",
+		Retryable:  false,
 	}
-	return errors.New(msg)
+}
+
+func runtimeError(code, msg, suggestion string, retryable bool) *Error {
+	return &Error{
+		Code:       code,
+		Message:    msg,
+		Suggestion: suggestion,
+		Retryable:  retryable,
+	}
 }

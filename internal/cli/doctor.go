@@ -7,17 +7,18 @@ import (
 	"github.com/chenhg5/imole/internal/device"
 )
 
-func (a *App) runDoctor(ctx context.Context, args []string) error {
+func (a *App) runDoctor(ctx context.Context, args []string) int {
 	var jsonMode bool
 	fs := flagSet("doctor")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	if err := parseFlags(fs, args); err != nil {
-		return err
+		a.printError(usageError(err.Error()))
+		return ExitUsage
 	}
 
 	report := device.Check(ctx)
-	if jsonMode {
-		return writeJSON(a.out, report)
+	if a.shouldJSON() || jsonMode {
+		return a.writeJSON(report)
 	}
 
 	fmt.Fprintln(a.out, "iMole Doctor")
@@ -40,7 +41,7 @@ func (a *App) runDoctor(ctx context.Context, args []string) error {
 	if report.Device.UDID == "" {
 		fmt.Fprintln(a.out, "Device: not detected")
 		fmt.Fprintln(a.out, "Tip: connect iPhone by USB, unlock it, and tap Trust This Computer.")
-		return nil
+		return ExitSuccess
 	}
 	fmt.Fprintf(a.out, "Device: %s\n", firstNonEmpty(report.Device.Name, "iPhone"))
 	fmt.Fprintf(a.out, "  UDID: %s\n", report.Device.UDID)
@@ -50,7 +51,7 @@ func (a *App) runDoctor(ctx context.Context, args []string) error {
 	if report.Device.IOSVersion != "" {
 		fmt.Fprintf(a.out, "  iOS: %s\n", report.Device.IOSVersion)
 	}
-	return nil
+	return ExitSuccess
 }
 
 func firstNonEmpty(values ...string) string {
