@@ -1,5 +1,6 @@
 #!/bin/bash
-# imole - Installer script for manual installs
+# imole - Installer script
+# Downloads source tarball (contains pre-built binary) and installs to INSTALL_DIR.
 
 set -euo pipefail
 
@@ -22,81 +23,19 @@ log_success() { echo -e "${GREEN}${ICON_OK}${NC} $1"; }
 log_error() { echo -e "${RED}${ICON_ERR}${NC} $1"; }
 log_warn() { echo -e "${YELLOW}WARNING:${NC} $1"; }
 
-# Default to ~/bin to avoid sudo
-INSTALL_DIR="${HOME}/bin"
-BINARY_NAME="imole"
+INSTALL_DIR="/usr/local/bin"
 REPO="chenhg5/imole"
+BINARY_NAME="imole"
 
-usage() {
-    cat << EOF
-imole installer
-
-Usage: curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bash [OPTIONS]
-
-Options:
-  -v, --version TAG Install specific version (e.g., v0.1.0)
-  -p, --prefix DIR  Install to custom directory (default: /usr/local/bin)
-  -h, --help        Show this help
-
-Examples:
-  curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bash
-  curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bash -s v0.1.0
-
-EOF
-}
-
-# Parse args
-VERSION=""
-PREFIX=""
-
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -v|--version)
-            VERSION="$2"
-            shift 2
-            ;;
-        -p|--prefix)
-            PREFIX="$2"
-            shift 2
-            ;;
-        -h|--help)
-            usage
-            exit 0
-            ;;
-        *)
-            log_warn "Unknown option: $1 (ignored)"
-            shift
-            ;;
-    esac
-done
-
-[[ -n "$PREFIX" ]] && INSTALL_DIR="$PREFIX"
-
-# Check requirements
-check_requirements() {
-    if [[ "$OSTYPE" != "darwin"* ]]; then
-        log_error "imole is designed for macOS only"
-        exit 1
-    fi
-
-    if command -v brew > /dev/null 2>&1 && brew list imole > /dev/null 2>&1; then
-        log_warn "imole is installed via Homebrew"
-        echo "Please use: brew upgrade imole"
-        exit 1
-    fi
-
-    if [[ ! -d "$(dirname "$INSTALL_DIR")" ]]; then
-        log_error "Directory $(dirname "$INSTALL_DIR") does not exist"
-        exit 1
-    fi
-}
-
-# Need sudo?
+# Check if sudo is needed
 needs_sudo() {
-    if [[ -e "$INSTALL_DIR/imole" && ! -w "$INSTALL_DIR" ]]; then
-        return 0
+    if [[ -e "$INSTALL_DIR" ]]; then
+        [[ ! -w "$INSTALL_DIR" ]]
+        return
     fi
-    [[ ! -w "$(dirname "$INSTALL_DIR")" ]]
+    local parent_dir
+    parent_dir="$(dirname "$INSTALL_DIR")"
+    [[ ! -w "$parent_dir" ]]
 }
 
 maybe_sudo() {
@@ -107,7 +46,15 @@ maybe_sudo() {
     fi
 }
 
-# Get latest release tag — try API first, fallback to git ls-remote
+# Pre-verify sudo if needed
+verify_sudo() {
+    if needs_sudo; then
+        log_info "Admin access required for $INSTALL_DIR"
+        sudo -v
+    fi
+}
+
+# Get latest release tag
 get_latest_tag() {
     # Try GitHub API
     local tag
@@ -147,31 +94,71 @@ get_arch() {
     fi
 }
 
-# Download release binary — try multiple URLs
-download_binary() {
+# Download source tarball and extract binary
+download_and_install() {
     local tag="$1"
     local arch="$2"
-    local tmp_file="/tmp/${BINARY_NAME}-${arch}"
+    local tmp
+    tmp="$(mktemp -d)"
 
-    local urls=(
-        "https://github.com/${REPO}/releases/download/${tag}/${BINARY_NAME}-${arch}"
-        "https://github.com/${REPO}/releases/download/${tag}/${BINARY_NAME}-${arch}?$(date +%s)"
-    )
+    # Try downloading the source tarball (contains pre-built binary)
+    local url="https://github.com/${REPO}/archive/refs/tags/${tag}.tar.gz"
+    log_info "Fetching ${BINARY_NAME} ${tag}..."
 
-    for url in "${urls[@]}"; do
-        log_info "Trying: ${url}..."
-        if curl -fSL --connect-timeout 10 --max-time 120 -o "$tmp_file" "$url" 2>/dev/null; then
-            mkdir -p "$INSTALL_DIR" 2>/dev/null || true
-            maybe_sudo cp "$tmp_file" "$INSTALL_DIR/${BINARY_NAME}"
-            maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}"
-            rm -f "$tmp_file"
-            log_success "Installed ${BINARY_NAME} ${tag} to $INSTALL_DIR"
-            return 0
+    if curl -fsSL --connect-timeout 10 --max-time 120 -o "$tmp/source.tar.gz" "$url" 2>/dev/null; then
+        if tar -xzf "$tmp/source.tar.gz" -C "$tmp" 2>/dev/null; then
+            local extracted_dir
+            extracted_dir=$(find "$tmp" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+
+            if [[ -n "$extracted_dir" && -f "$extracted_dir/bin/${BINARY_NAME}-${arch}" ]]; then
+                verify_sudo
+                mkdir -p "$INSTALL_DIR" 2>/dev/null || true
+                # Atomic install: copy to .new then move
+                maybe_sudo cp "$extracted_dir/bin/${BINARY_NAME}-${arch}" "$INSTALL_DIR/${BINARY_NAME}.new"
+                maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
+                maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+                rm -rf "$tmp"
+                log_success "Installed ${BINARY_NAME} ${tag} to $INSTALL_DIR"
+                return 0
+            fi
         fi
-        rm -f "$tmp_file"
-    done
+    fi
 
-    log_error "Failed to download ${BINARY_NAME}"
+    # Fallback: try direct release asset download
+    local asset_url="https://github.com/${REPO}/releases/download/${tag}/${BINARY_NAME}-${arch}"
+    log_info "Trying release asset..."
+    if curl -fSL --connect-timeout 10 --max-time 120 -o "$tmp/${BINARY_NAME}" "$asset_url" 2>/dev/null; then
+        verify_sudo
+        mkdir -p "$INSTALL_DIR" 2>/dev/null || true
+        maybe_sudo cp "$tmp/${BINARY_NAME}" "$INSTALL_DIR/${BINARY_NAME}.new"
+        maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
+        maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+        rm -rf "$tmp"
+        log_success "Installed ${BINARY_NAME} ${tag} to $INSTALL_DIR"
+        return 0
+    fi
+
+    # Fallback: git clone and build
+    if command -v go > /dev/null 2>&1; then
+        log_warn "Download failed, building from source..."
+        if git clone --depth=1 "https://github.com/${REPO}.git" "$tmp/src" 2>/dev/null; then
+            if (cd "$tmp/src" && go build -ldflags="-s -w" -o "${BINARY_NAME}" ./cmd/imole) 2>/dev/null; then
+                verify_sudo
+                mkdir -p "$INSTALL_DIR" 2>/dev/null || true
+                maybe_sudo cp "$tmp/src/${BINARY_NAME}" "$INSTALL_DIR/${BINARY_NAME}.new"
+                maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}.new"
+                maybe_sudo mv -f "$INSTALL_DIR/${BINARY_NAME}.new" "$INSTALL_DIR/${BINARY_NAME}"
+                rm -rf "$tmp"
+                log_success "Built and installed ${BINARY_NAME} to $INSTALL_DIR"
+                return 0
+            fi
+        fi
+    fi
+
+    rm -rf "$tmp"
+    log_error "Failed to install ${BINARY_NAME}"
+    echo ""
+    echo "Manual install: download from https://github.com/${REPO}/releases/tag/${tag}"
     return 1
 }
 
@@ -187,73 +174,40 @@ verify() {
     fi
 }
 
-# Build from source as fallback
-build_from_source() {
-    if ! command -v go > /dev/null 2>&1; then
-        return 1
-    fi
-
-    local tmp_dir
-    tmp_dir=$(mktemp -d)
-    log_info "Building from source..."
-
-    if ! git clone --depth=1 "https://github.com/${REPO}.git" "$tmp_dir" 2>/dev/null; then
-        rm -rf "$tmp_dir"
-        return 1
-    fi
-
-    if (cd "$tmp_dir" && go build -ldflags="-s -w" -o "${BINARY_NAME}" ./cmd/imole) 2>/dev/null; then
-        maybe_sudo cp "$tmp_dir/${BINARY_NAME}" "$INSTALL_DIR/${BINARY_NAME}"
-        maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}"
-        rm -rf "$tmp_dir"
-        log_success "Built and installed ${BINARY_NAME} to $INSTALL_DIR"
-        return 0
-    fi
-
-    rm -rf "$tmp_dir"
-    return 1
-}
-
 # Main
 main() {
-    check_requirements
+    if [[ "$OSTYPE" != "darwin"* ]]; then
+        log_error "imole is designed for macOS only"
+        exit 1
+    fi
 
-    local tag
-    if [[ -n "$VERSION" ]]; then
-        tag="$VERSION"
-    else
+    local tag="${1:-}"
+    if [[ -z "$tag" ]]; then
         log_info "Detecting latest version..."
         if ! tag="$(get_latest_tag)"; then
-            log_error "Failed to detect latest version. Try: $0 -v v0.1.0"
+            log_error "Failed to detect latest version"
+            echo "Try: $0 v0.1.0"
             exit 1
         fi
     fi
 
-    if ! download_binary "$tag" "$(get_arch)"; then
-        log_warn "Download failed, trying build from source..."
-        if ! build_from_source; then
-            log_error "Installation failed. Download the binary manually from:"
-            echo "  https://github.com/${REPO}/releases/tag/${tag}"
-            exit 1
-        fi
-    fi
+    local arch
+    arch="$(get_arch)"
 
+    download_and_install "$tag" "$arch"
     verify
 
-    # Ensure ~/bin is in PATH
+    # PATH hint
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
         echo ""
         log_warn "$INSTALL_DIR is not in your PATH"
-        echo "Add this to your ~/.zshrc:"
-        echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
-        echo ""
-        echo "Then run: source ~/.zshrc"
+        echo "Add to ~/.zshrc: export PATH=\"$INSTALL_DIR:\$PATH\""
     fi
 
     echo ""
     echo "Usage: imole --help"
-    echo "        imole scan"
-    echo "        imole backup --to /path/to/backup"
+    echo "       imole scan"
+    echo "       imole backup --to /path/to/backup"
 }
 
-main
+main "$@"
