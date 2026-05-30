@@ -269,6 +269,10 @@ internal/history   operation log (backup and delete audit)
 - **iCloud users** — if iCloud Photos sync is on, deleting via iMole also removes from iCloud. Back up first.
 - **Linux/Windows** — mount the iPhone DCIM folder first (`ifuse` on Linux, iTunes on Windows), then pass `--source PATH`.
 
+## Acknowledgments
+
+iMole was inspired by [Mole](https://github.com/tw93/mole) — a fantastic macOS system cleanup tool by [@tw93](https://github.com/tw93). Mole proved that a single CLI binary can replace heavyweight GUI apps for system maintenance, and its agent-friendly design principles deeply influenced how iMole is built. If you're looking to clean up your Mac, check it out — it's excellent.
+
 ## Contributing
 
 Issues and PRs welcome. Run `go test ./...` before submitting.
