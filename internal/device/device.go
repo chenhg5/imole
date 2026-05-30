@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -33,13 +34,45 @@ type DoctorReport struct {
 
 func Check(ctx context.Context) DoctorReport {
 	deps := []Dependency{
-		checkCommand("idevice_id", "brew install libimobiledevice", true),
-		checkCommand("ideviceinfo", "brew install libimobiledevice", true),
-		checkCommand("idevicepair", "brew install libimobiledevice", false),
-		checkCommand("gphoto2", "brew install gphoto2", false),
-		checkCommand("ifuse", "optional on Linux; macOS prefers Image Capture", false),
+		checkCommand("idevice_id", installHint("libimobiledevice"), true),
+		checkCommand("ideviceinfo", installHint("libimobiledevice"), true),
+		checkCommand("idevicepair", installHint("libimobiledevice"), false),
+		checkCommand("gphoto2", installHint("gphoto2"), false),
+		checkCommand("ifuse", installHint("ifuse"), false),
 	}
 	return DoctorReport{Dependencies: deps, Device: detectDevice(ctx)}
+}
+
+// installHint returns the platform-appropriate install instruction for a package.
+func installHint(pkg string) string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "brew install " + pkg
+	case "linux":
+		switch pkg {
+		case "libimobiledevice":
+			return "sudo apt install libimobiledevice-utils  # or: sudo dnf install libimobiledevice"
+		case "gphoto2":
+			return "sudo apt install gphoto2  # or: sudo dnf install gphoto2"
+		case "ifuse":
+			return "sudo apt install ifuse  # or: sudo dnf install ifuse"
+		default:
+			return "sudo apt install " + pkg
+		}
+	case "windows":
+		switch pkg {
+		case "libimobiledevice":
+			return "install iTunes (includes libimobiledevice drivers)"
+		case "gphoto2":
+			return "not available on Windows; use --source PATH after mounting via iTunes"
+		case "ifuse":
+			return "not available on Windows; use --source PATH after mounting via iTunes"
+		default:
+			return "see https://github.com/chenhg5/imole for Windows setup"
+		}
+	default:
+		return "see https://github.com/chenhg5/imole for setup instructions"
+	}
 }
 
 func checkCommand(name, install string, essential bool) Dependency {

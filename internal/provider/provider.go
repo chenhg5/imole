@@ -54,7 +54,24 @@ func Scan(ctx context.Context, opts Options) (media.Result, error) {
 			}
 			return media.Result{}, fmt.Errorf("no macOS media provider is ready; use --source PATH for now (%s)", strings.Join(failures, "; "))
 		}
-		return media.Result{}, fmt.Errorf("auto provider requires --source PATH on %s", runtime.GOOS)
+		if runtime.GOOS == "linux" {
+			// On Linux: try gphoto2 (works over USB with libgphoto2).
+			// For ifuse-mounted paths use --source instead.
+			if result, err := ScanGPhoto(ctx, scanOpts); err == nil {
+				return result, nil
+			}
+			return media.Result{}, fmt.Errorf(
+				"no USB media provider found on Linux; options:\n" +
+					"  1. install gphoto2:  sudo apt install gphoto2\n" +
+					"  2. mount via ifuse:  ifuse ~/iphone && imole scan --source ~/iphone/DCIM",
+			)
+		}
+		// Windows and other platforms: require an explicit mounted path.
+		return media.Result{}, fmt.Errorf(
+			"auto provider is not supported on %s; use --source PATH\n"+
+				"  On Windows: connect iPhone, open iTunes/Finder, then use the DCIM path exposed by Windows Explorer",
+			runtime.GOOS,
+		)
 	case Filesystem:
 		if opts.Source == "" {
 			return media.Result{}, fmt.Errorf("filesystem provider requires --source PATH")

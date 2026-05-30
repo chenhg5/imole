@@ -29,7 +29,13 @@ func Download(ctx context.Context, providerName Name, requests []DownloadRequest
 		if runtime.GOOS == "darwin" {
 			return DownloadImageCapture(ctx, requests, destRoot)
 		}
-		return nil, fmt.Errorf("auto download requires a concrete provider on %s", runtime.GOOS)
+		// On Linux/Windows the backup command copies from the filesystem directly
+		// when --source is provided; this path is only reached for provider-based
+		// downloads which are macOS-only for now.
+		return nil, fmt.Errorf(
+			"direct download via provider is macOS-only; on %s use --source PATH to scan a mounted DCIM path, then backup copies files from that path directly",
+			runtime.GOOS,
+		)
 	default:
 		return nil, fmt.Errorf("provider %q does not support direct download", providerName)
 	}

@@ -22,7 +22,11 @@ log_success() { echo -e "${GREEN}${ICON_OK}${NC} $1"; }
 log_error() { echo -e "${RED}${ICON_ERR}${NC} $1"; }
 log_warn() { echo -e "${YELLOW}WARNING:${NC} $1"; }
 
-INSTALL_DIR="/usr/local/bin"
+# Default to ~/bin to avoid sudo; fall back to /usr/local/bin if ~/bin is not in PATH
+INSTALL_DIR="${HOME}/bin"
+if [[ ":$PATH:" != *":${HOME}/bin:"* ]]; then
+    INSTALL_DIR="/usr/local/bin"
+fi
 BINARY_NAME="imole"
 REPO="chenhg5/imole"
 
@@ -146,27 +150,31 @@ get_arch() {
     fi
 }
 
-# Download release binary
+# Download release binary — try multiple URLs
 download_binary() {
     local tag="$1"
     local arch="$2"
-    local url="https://github.com/${REPO}/releases/download/${tag}/${BINARY_NAME}-${arch}"
     local tmp_file="/tmp/${BINARY_NAME}-${arch}"
 
-    log_info "Downloading ${BINARY_NAME} ${tag} for ${arch}..."
+    local urls=(
+        "https://github.com/${REPO}/releases/download/${tag}/${BINARY_NAME}-${arch}"
+        "https://github.com/${REPO}/releases/download/${tag}/${BINARY_NAME}-${arch}?$(date +%s)"
+    )
 
-    if ! curl -fsSL --connect-timeout 10 --max-time 120 -o "$tmp_file" "$url"; then
-        log_error "Failed to download ${BINARY_NAME}"
+    for url in "${urls[@]}"; do
+        log_info "Trying: ${url}..."
+        if curl -fSL --connect-timeout 10 --max-time 120 -o "$tmp_file" "$url" 2>/dev/null; then
+            maybe_sudo cp "$tmp_file" "$INSTALL_DIR/${BINARY_NAME}"
+            maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}"
+            rm -f "$tmp_file"
+            log_success "Installed ${BINARY_NAME} ${tag} to $INSTALL_DIR"
+            return 0
+        fi
         rm -f "$tmp_file"
-        return 1
-    fi
+    done
 
-    maybe_sudo cp "$tmp_file" "$INSTALL_DIR/${BINARY_NAME}"
-    maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}"
-    rm -f "$tmp_file"
-
-    log_success "Installed ${BINARY_NAME} ${tag} to $INSTALL_DIR"
-    return 0
+    log_error "Failed to download ${BINARY_NAME}"
+    return 1
 }
 
 # Verify installation
@@ -179,6 +187,33 @@ verify() {
         log_error "Installation verification failed"
         exit 1
     fi
+}
+
+# Build from source as fallback
+build_from_source() {
+    if ! command -v go > /dev/null 2>&1; then
+        return 1
+    fi
+
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+    log_info "Building from source..."
+
+    if ! git clone --depth=1 "https://github.com/${REPO}.git" "$tmp_dir" 2>/dev/null; then
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+
+    if (cd "$tmp_dir" && go build -ldflags="-s -w" -o "${BINARY_NAME}" ./cmd/imole) 2>/dev/null; then
+        maybe_sudo cp "$tmp_dir/${BINARY_NAME}" "$INSTALL_DIR/${BINARY_NAME}"
+        maybe_sudo chmod +x "$INSTALL_DIR/${BINARY_NAME}"
+        rm -rf "$tmp_dir"
+        log_success "Built and installed ${BINARY_NAME} to $INSTALL_DIR"
+        return 0
+    fi
+
+    rm -rf "$tmp_dir"
+    return 1
 }
 
 # Main
@@ -197,9 +232,12 @@ main() {
     fi
 
     if ! download_binary "$tag" "$(get_arch)"; then
-        log_error "Installation failed. Download the binary manually from:"
-        echo "  https://github.com/${REPO}/releases/tag/${tag}"
-        exit 1
+        log_warn "Download failed, trying build from source..."
+        if ! build_from_source; then
+            log_error "Installation failed. Download the binary manually from:"
+            echo "  https://github.com/${REPO}/releases/tag/${tag}"
+            exit 1
+        fi
     fi
 
     verify

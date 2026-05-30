@@ -16,7 +16,13 @@ func Delete(ctx context.Context, providerName Name, requests []DeleteRequest) ([
 		if runtime.GOOS == "darwin" {
 			return DeleteImageCapture(ctx, requests)
 		}
-		return nil, fmt.Errorf("auto delete requires a concrete provider on %s", runtime.GOOS)
+		// On Linux/Windows: deletion from a mounted DCIM path is handled by the
+		// filesystem provider (imole clean --source PATH). USB PTP-based deletion
+		// via gphoto2 is not yet implemented.
+		return nil, fmt.Errorf(
+			"USB delete is macOS-only (ImageCaptureCore); on %s mount the iPhone with ifuse and use --source PATH",
+			runtime.GOOS,
+		)
 	default:
 		return nil, fmt.Errorf("provider %q does not support delete; use ImageCapture (macOS only)", providerName)
 	}
