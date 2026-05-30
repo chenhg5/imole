@@ -1,0 +1,51 @@
+name: Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: Check Go formatting
+        run: |
+          UNFORMATTED=$(goimports -l -local github.com/chenhg5/imole ./cmd ./internal)
+          if [[ -n "$UNFORMATTED" ]]; then
+            echo "Go files are not formatted:"
+            echo "$UNFORMATTED"
+            echo "Run 'gofmt -w cmd internal' locally and commit."
+            exit 1
+          fi
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    needs: format
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: brew install shellcheck
+
+      - name: Check shell scripts
+        run: |
+          SHELL_FILES=$(find . -type f -name "*.sh" -not -path "./.git/*")
+          if [[ -n "$SHELL_FILES" ]]; then
+            shellcheck --severity=error $SHELL_FILES
+          fi
