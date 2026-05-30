@@ -4,6 +4,10 @@
 </div>
 
 <p align="center">
+  <img src="docs/images/mole_with_iphone.png" alt="iMole with iPhone" width="400"/>
+</p>
+
+<p align="center">
   <a href="https://github.com/chenhg5/imole/stargazers"><img src="https://img.shields.io/github/stars/chenhg5/imole?style=flat-square" alt="Stars"></a>
   <a href="https://github.com/chenhg5/imole/releases"><img src="https://img.shields.io/github/v/tag/chenhg5/imole?label=version&style=flat-square" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
