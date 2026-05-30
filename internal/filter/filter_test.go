@@ -1,0 +1,28 @@
+package filter
+
+import (
+	"testing"
+	"time"
+
+	"github.com/chenhg5/imole/internal/media"
+)
+
+func TestParseSize(t *testing.T) {
+	got, err := ParseSize("1.5GB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := int64(1.5 * 1024 * 1024 * 1024)
+	if got != want {
+		t.Fatalf("ParseSize() = %d, want %d", got, want)
+	}
+}
+
+func TestFilterMatch(t *testing.T) {
+	now := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
+	item := media.Item{Kind: "video", Size: 1024, ModTime: now.Add(-48 * time.Hour)}
+	f := Filter{Only: KindVideos, OlderThan: 24 * time.Hour, LargeThan: 512, Now: now}
+	if !f.Match(item) {
+		t.Fatal("expected item to match")
+	}
+}
