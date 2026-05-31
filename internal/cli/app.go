@@ -83,10 +83,6 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		return a.runDoctor(ctx, args[1:])
 	case "scan":
 		return a.runScan(ctx, args[1:])
-	case "stats":
-		return a.runStats(ctx, args[1:])
-	case "videos":
-		return a.runVideos(ctx, args[1:])
 	case "backup":
 		return a.runBackup(ctx, args[1:])
 	case "report":

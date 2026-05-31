@@ -21,13 +21,14 @@ Usage:
 
 scan flags:
   (no flags)          Scan report with summary and next-step hints
-  --summary           Compact stats table  (replaces old: stats)
+  --summary           Compact stats table
   --top N             Top N largest files sorted by size
   --only videos|photos|all   Filter by media type
   --older-than 90d|6m|1y     Filter by age
   --large-than 500MB|1GB     Filter by size
+  --cache             Use cached result (< 1h old); skips slow USB enumeration
   --provider auto|imagecapture|filesystem|gphoto
-  --source PATH        Scan a local mounted path instead of USB
+  --source PATH       Scan a local mounted path instead of USB
 
 Other common flags:
   --json              Force JSON output

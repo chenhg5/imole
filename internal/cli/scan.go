@@ -3,21 +3,25 @@ package cli
 import (
 	"context"
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/chenhg5/imole/internal/human"
 	"github.com/chenhg5/imole/internal/media"
 	"github.com/chenhg5/imole/internal/provider"
+	"github.com/chenhg5/imole/internal/scancache"
 )
 
 func (a *App) runScan(ctx context.Context, args []string) int {
 	var providerName, source, only, largeThan, oldAgeRaw, fields string
 	var top int
-	var jsonMode, summary bool
+	var jsonMode, summary, useCache bool
 	fs := flagSet("scan")
 	addProviderFlags(fs, &providerName, &source)
 	addFilterFlags(fs, &only, &oldAgeRaw, &largeThan)
 	fs.IntVar(&top, "top", 0, "show top N largest files sorted by size; use with --only videos|photos|all")
-	fs.BoolVar(&summary, "summary", false, "show compact stats table only (equivalent to old `stats` command)")
+	fs.BoolVar(&summary, "summary", false, "show compact stats table only")
+	fs.BoolVar(&useCache, "cache", false, "use cached scan result if available and less than 1 hour old")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
 	if err := parseFlags(fs, args); err != nil {
@@ -35,15 +39,31 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 		return ExitUsage
 	}
 
-	a.status("Scanning device… (may take ~15 s for USB)")
-	result, err := scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
-	if err != nil {
-		hint := scanHint(providerName, source)
-		a.printError(runtimeError("scan_failed", err.Error(), hint, true))
-		return ExitError
+	var result media.Result
+	var fromCache bool
+
+	if useCache {
+		if entry, ok := scancache.Read(providerName, source, scancache.DefaultTTL); ok {
+			result = entry.Result
+			fromCache = true
+			age := time.Since(entry.ScannedAt)
+			mins := int(math.Round(age.Minutes()))
+			a.status(fmt.Sprintf("Using cached scan from %d min ago (run without --cache for a fresh scan)", mins))
+		}
 	}
-	if result.Summary.Root != "" {
-		a.status("Device ready: " + result.Summary.Root)
+
+	if !fromCache {
+		a.status("Scanning device… (may take ~15 s for USB)")
+		result, err = scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
+		if err != nil {
+			hint := scanHint(providerName, source)
+			a.printError(runtimeError("scan_failed", err.Error(), hint, true))
+			return ExitError
+		}
+		if result.Summary.Root != "" {
+			a.status("Device ready: " + result.Summary.Root)
+		}
+		_ = scancache.Write(providerName, source, result)
 	}
 
 	if a.shouldJSON() || jsonMode {
@@ -127,41 +147,4 @@ func (a *App) printTopItems(items []media.Item, only string, top int) int {
 		)
 	}
 	return ExitSuccess
-}
-
-// runStats is a backward-compatible alias for `scan --summary`.
-func (a *App) runStats(ctx context.Context, args []string) int {
-	return a.runScan(ctx, append([]string{"--summary"}, args...))
-}
-
-// runVideos is a backward-compatible alias for `scan --only videos --top N`.
-func (a *App) runVideos(ctx context.Context, args []string) int {
-	// Translate --top flag; if not present, default to 20.
-	// Pass through all args but inject --only videos if --only is not set.
-	hasOnly := false
-	hasSummary := false
-	for _, arg := range args {
-		if arg == "--only" || len(arg) > 7 && arg[:7] == "--only=" {
-			hasOnly = true
-		}
-		if arg == "--summary" {
-			hasSummary = true
-		}
-	}
-	_ = hasSummary
-	newArgs := args
-	if !hasOnly {
-		newArgs = append([]string{"--only", "videos"}, args...)
-	}
-	// If no --top is in args, inject --top 20
-	hasTop := false
-	for _, arg := range args {
-		if arg == "--top" || len(arg) > 5 && arg[:5] == "--top" {
-			hasTop = true
-		}
-	}
-	if !hasTop {
-		newArgs = append([]string{"--top", "20"}, newArgs...)
-	}
-	return a.runScan(ctx, newArgs)
 }

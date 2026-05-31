@@ -37,33 +37,12 @@ var commandSchemas = map[string]SchemaCommand{
 			{Name: "source", Type: "string", Default: "", Description: "scan a local mounted path instead of USB device"},
 			{Name: "only", Type: "string", Default: "all", Enum: []string{"all", "photos", "videos"}, Description: "filter by media type"},
 			{Name: "top", Type: "int", Default: "0", Description: "show top N largest files sorted by size; 0 = summary mode"},
-			{Name: "summary", Type: "bool", Default: "false", Description: "compact stats table only (equivalent to old stats command)"},
+			{Name: "summary", Type: "bool", Default: "false", Description: "compact stats table only"},
+			{Name: "cache", Type: "bool", Default: "false", Description: "use cached scan result if available and less than 1 hour old; skips the slow USB enumeration"},
 			{Name: "older-than", Type: "string", Default: "", Description: "filter: older than age, e.g. 90d, 6m, 1y"},
 			{Name: "large-than", Type: "string", Default: "", Description: "filter: larger than size, e.g. 500MB, 1GB"},
 			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
 			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output"},
-		},
-	},
-	// stats and videos are kept as undocumented aliases for backward compatibility.
-	"stats": {
-		Name:        "stats",
-		Description: "Alias for: scan --summary. Kept for backward compatibility.",
-		Flags: []SchemaFlag{
-			{Name: "provider", Type: "string", Default: "auto", Description: "media provider"},
-			{Name: "source", Type: "string", Default: "", Description: "local path"},
-			{Name: "only", Type: "string", Default: "all", Description: "media filter"},
-			{Name: "json", Type: "bool", Default: "false", Description: "output JSON"},
-			{Name: "fields", Type: "string", Default: "", Description: "JSON field filter"},
-		},
-	},
-	"videos": {
-		Name:        "videos",
-		Description: "Alias for: scan --only videos --top N. Kept for backward compatibility.",
-		Flags: []SchemaFlag{
-			{Name: "provider", Type: "string", Default: "auto", Description: "media provider"},
-			{Name: "source", Type: "string", Default: "", Description: "local path"},
-			{Name: "top", Type: "int", Default: "20", Description: "number of videos to show"},
-			{Name: "json", Type: "bool", Default: "false", Description: "output JSON"},
 		},
 	},
 	"backup": {
