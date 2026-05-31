@@ -113,12 +113,12 @@ jobs:
 
       - name: Commit and push
         env:
-          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/chenhg5/homebrew-tap.git
+          git remote set-url origin https://x-access-token:${HOMEBREW_TOKEN}@github.com/chenhg5/homebrew-tap.git
           git add Formula/imole.rb
           git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "imole ${{ steps.version.outputs.version }}"
