@@ -12,7 +12,11 @@ import (
 	"golang.org/x/term"
 )
 
-const Version = "0.1.0"
+// Version is the current imole version.
+// It can be overridden at build time with:
+//
+//	go build -ldflags="-X github.com/chenhg5/imole/internal/cli.Version=x.y.z"
+var Version = "0.1.0"
 
 type App struct {
 	out        io.Writer
