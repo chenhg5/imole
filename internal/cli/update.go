@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	githubRepo     = "chenhg5/imole"
+	githubRepo       = "chenhg5/imole"
 	installScriptURL = "https://raw.githubusercontent.com/" + githubRepo + "/main/install.sh"
 )
 

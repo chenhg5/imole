@@ -25,7 +25,7 @@ type Entry struct {
 	Kind         Kind      `json:"kind"`
 	Files        int       `json:"files"`
 	Size         int64     `json:"size"`
-	Destination  string    `json:"destination,omitempty"`  // backup: dest dir
+	Destination  string    `json:"destination,omitempty"`   // backup: dest dir
 	ManifestPath string    `json:"manifest_path,omitempty"` // clean: manifest used
 	Failed       int       `json:"failed,omitempty"`
 }

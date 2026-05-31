@@ -26,10 +26,10 @@ func (a *App) runClean(ctx context.Context, args []string) int {
 	// is enforced even with --yes or --dry-run.
 	if v := os.Getenv(noDeleteEnv); v != "" {
 		a.printError(&Error{
-			Code:      "delete_disabled",
-			Message:   noDeleteEnv + " is set — deletion is disabled in this environment",
+			Code:       "delete_disabled",
+			Message:    noDeleteEnv + " is set — deletion is disabled in this environment",
 			Suggestion: "Unset " + noDeleteEnv + " if you want to allow deletion: unset " + noDeleteEnv,
-			Retryable: false,
+			Retryable:  false,
 		})
 		return ExitError
 	}
