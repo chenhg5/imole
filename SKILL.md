@@ -307,9 +307,12 @@ Back up media to local disk with verification.
 
 ```bash
 imole backup --to /Volumes/External/iphone-backup --only videos --older-than 90d
+imole backup --to ~/backup --file DCIM/202507__/IMG_7523.MOV --dry-run
 imole backup --to ~/backup --only photos --older-than 1y --dry-run
 imole backup --to ~/backup --large-than 500MB --json
 ```
+
+Use `--file REL_PATH` when the user chooses an exact item from `imole scan --top ...` output. The value should be the item's `rel_path`, and `--file` can be repeated.
 
 ### `imole report`
 
@@ -326,9 +329,12 @@ Delete verified-backup files from iPhone.
 
 ```bash
 imole clean --manifest ~/backup/manifest.json --dry-run   # preview
+imole clean --manifest ~/backup/manifest.json --file DCIM/202507__/IMG_7523.MOV --dry-run
 imole clean --manifest ~/backup/manifest.json --yes        # delete without prompt
 imole clean                                                 # show recommended flow
 ```
+
+Use `clean --file REL_PATH` only to narrow deletion to a file that is already present and verified in the manifest. It must never be described as direct arbitrary device-file deletion.
 
 ### `imole guide`
 

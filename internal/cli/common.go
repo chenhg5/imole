@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/chenhg5/imole/internal/filter"
@@ -13,13 +14,29 @@ import (
 	"github.com/chenhg5/imole/internal/provider"
 )
 
-func parseFilter(only, olderThan, largeThan string) (filter.Filter, error) {
+type stringList []string
+
+func (s *stringList) String() string {
+	return strings.Join(*s, ",")
+}
+
+func (s *stringList) Set(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("--file cannot be empty")
+	}
+	*s = append(*s, value)
+	return nil
+}
+
+func parseFilter(only, olderThan, largeThan string, files []string) (filter.Filter, error) {
 	f := filter.Default()
 	kind, err := filter.ParseKind(only)
 	if err != nil {
 		return f, err
 	}
 	f.Only = kind
+	f.Files = normalizedFiles(files)
 	if olderThan != "" {
 		age, err := filter.ParseAge(olderThan)
 		if err != nil {
@@ -35,6 +52,26 @@ func parseFilter(only, olderThan, largeThan string) (filter.Filter, error) {
 		f.LargeThan = size
 	}
 	return f, nil
+}
+
+func normalizedFiles(files []string) []string {
+	if len(files) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(files))
+	seen := make(map[string]struct{}, len(files))
+	for _, file := range files {
+		normalized := filter.NormalizeFile(file)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out
 }
 
 func scanFromFlags(ctx context.Context, providerName, source string, largeThreshold int64, oldAge time.Duration) (media.Result, error) {

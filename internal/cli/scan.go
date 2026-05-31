@@ -37,8 +37,19 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 			return a.runScanApps(ctx, args[1:])
 		case "media":
 			args = args[1:]
+		case "help", "--help", "-h":
+			a.runScanHelp()
+			return ExitSuccess
 		default:
 			// Keep ordinary flag parsing for "scan --summary", etc.
+		}
+	}
+
+	// Also handle: imole scan --help
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			a.runScanHelp()
+			return ExitSuccess
 		}
 	}
 
@@ -66,7 +77,7 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 		a.printError(usageError(err.Error()))
 		return ExitUsage
 	}
-	f, err := parseFilter(only, oldAgeRaw, largeThan)
+	f, err := parseFilter(only, oldAgeRaw, largeThan, nil)
 	if err != nil {
 		a.printError(&Error{
 			Code:       "usage_error",

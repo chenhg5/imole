@@ -26,3 +26,16 @@ func TestFilterMatch(t *testing.T) {
 		t.Fatal("expected item to match")
 	}
 }
+
+func TestFilterMatchFiles(t *testing.T) {
+	item := media.Item{RelPath: "DCIM/202507__/IMG_7523.MOV", Name: "IMG_7523.MOV", Kind: "video"}
+	if !(Filter{Only: KindAll, Files: []string{"imagecapture://DCIM/202507__/IMG_7523.MOV"}}).Match(item) {
+		t.Fatal("expected imagecapture rel path to match")
+	}
+	if (Filter{Only: KindAll, Files: []string{"IMG_7523.MOV"}}).Match(item) {
+		t.Fatal("expected basename-only value to not match")
+	}
+	if (Filter{Only: KindAll, Files: []string{"DCIM/other.mov"}}).Match(item) {
+		t.Fatal("expected different file to not match")
+	}
+}

@@ -40,12 +40,14 @@ imole scan media --summary                             # media-only summary
 imole scan --top 10 --only videos                      # find the biggest culprits
 imole scan apps --top 20                               # rank app storage usage
 
+imole backup --to ~/iphone-backup --file DCIM/202507__/IMG_7523.MOV --dry-run # preview one file
 imole backup --to ~/iphone-backup --only videos --older-than 90d --dry-run   # preview
 imole backup --to ~/iphone-backup --only videos --older-than 90d              # back up
 
 imole report --manifest ~/iphone-backup/manifest.json  # confirm all verified
 
 imole clean  --manifest ~/iphone-backup/manifest.json  # delete from iPhone
+imole clean  --manifest ~/iphone-backup/manifest.json --file DCIM/202507__/IMG_7523.MOV --dry-run # preview deleting one verified file
 # → on iPhone: Photos → Recently Deleted → Delete All  → space freed 🎉
 ```
 
@@ -177,6 +179,7 @@ imole schema  [command]             # Machine-readable command schema (agent-fri
 --only all|photos|videos
 --older-than 90d|6m|1y
 --large-than 500MB|1GB
+--file REL_PATH   # backup: select a rel_path; clean: restrict to a verified source_rel in manifest; repeatable
 --json           # force JSON output
 --fields a,b     # select JSON fields (dot-path notation)
 ```

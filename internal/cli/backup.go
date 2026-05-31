@@ -17,11 +17,21 @@ import (
 )
 
 func (a *App) runBackup(ctx context.Context, args []string) int {
+	// Handle --help before flag parsing to avoid "flag: help requested" error
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			a.runBackupHelp()
+			return ExitSuccess
+		}
+	}
+
 	var providerName, source, to, only, olderThan, largeThan, fields string
 	var dryRun, jsonMode bool
+	var files stringList
 	fs := flagSet("backup")
 	addProviderFlags(fs, &providerName, &source)
 	fs.StringVar(&to, "to", "", "backup destination")
+	fs.Var(&files, "file", "back up a specific rel_path from scan output; repeat for multiple files")
 	fs.BoolVar(&dryRun, "dry-run", false, "preview backup without copying")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
@@ -34,7 +44,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		a.printError(usageError("backup requires --to PATH"))
 		return ExitUsage
 	}
-	f, err := parseFilter(only, olderThan, largeThan)
+	f, err := parseFilter(only, olderThan, largeThan, files)
 	if err != nil {
 		a.printError(&Error{
 			Code:       "usage_error",

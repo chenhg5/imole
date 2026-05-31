@@ -2,6 +2,111 @@ package cli
 
 import "fmt"
 
+func (a *App) runScanHelp() {
+	fmt.Fprint(a.out, a.renderScanHelp())
+}
+
+func (a *App) renderScanHelp() string {
+	header := func(s string) string { return a.bold(s) + "\n" }
+	flag := func(name, desc string) string {
+		padded := fmt.Sprintf("%-40s", name)
+		return "  " + a.green(padded) + a.dim(desc) + "\n"
+	}
+	cmd := func(name, desc string) string {
+		padded := fmt.Sprintf("%-40s", name)
+		return "  " + a.cyan(padded) + a.dim(desc) + "\n"
+	}
+
+	return header("imole scan — scan iPhone storage") +
+		"\n" +
+		header("Subcommands") +
+		cmd("scan [--flags]", "Scan media (photos + videos) — default") +
+		cmd("scan media [--flags]", "Media-only scan") +
+		cmd("scan apps [--top N]", "Rank apps by storage usage") +
+		"\n" +
+		header("Media scan flags") +
+		flag("--summary", "Compact stats table: media + app storage") +
+		flag("--top N [--only videos|photos]", "Largest N files sorted by size") +
+		flag("--only all|photos|videos", "Filter by media type") +
+		flag("--older-than 90d|6m|1y", "Filter files older than age") +
+		flag("--large-than 500MB|1GB", "Filter files larger than size") +
+		flag("--source PATH", "Scan local mount instead of USB device") +
+		flag("--cache", "Use cached scan result (< 1 h old)") +
+		"\n" +
+		header("Output flags") +
+		flag("--json", "Force JSON output") +
+		flag("--fields a,b.c", "Select specific JSON fields (dot-path)") +
+		"\n" +
+		a.dim("  scan is read-only — --dry-run is not accepted.\n") +
+		"\n" +
+		a.dim("Examples:\n") +
+		a.dim("  imole scan --summary\n") +
+		a.dim("  imole scan --top 20 --only videos\n") +
+		a.dim("  imole scan apps --top 20\n") +
+		a.dim("  imole scan --cache --summary --json\n") +
+		"\n"
+}
+
+func (a *App) runBackupHelp() {
+	fmt.Fprint(a.out, a.renderBackupHelp())
+}
+
+func (a *App) renderBackupHelp() string {
+	header := func(s string) string { return a.bold(s) + "\n" }
+	flag := func(name, desc string) string {
+		padded := fmt.Sprintf("%-40s", name)
+		return "  " + a.green(padded) + a.dim(desc) + "\n"
+	}
+
+	return header("imole backup — back up media to local disk") +
+		"\n" +
+		header("Flags") +
+		flag("--to PATH", "Required. Destination directory for backup") +
+		flag("--only all|photos|videos", "Filter by media type") +
+		flag("--older-than 90d|6m|1y", "Filter files older than age") +
+		flag("--large-than 500MB|1GB", "Filter files larger than size") +
+		flag("--file REL_PATH", "Back up a specific file; repeatable") +
+		flag("--source PATH", "Scan local mount instead of USB device") +
+		flag("--dry-run", "Preview without copying (exit 10 = safe)") +
+		flag("--json", "Force JSON output") +
+		flag("--fields a,b.c", "Select specific JSON fields (dot-path)") +
+		"\n" +
+		a.dim("Examples:\n") +
+		a.dim("  imole backup --to ~/iphone-backup --only videos --older-than 90d\n") +
+		a.dim("  imole backup --to ~/backup --only videos --dry-run\n") +
+		a.dim("  imole backup --to ~/backup --file DCIM/202507__/IMG_7523.MOV\n") +
+		"\n"
+}
+
+func (a *App) runCleanHelp() {
+	fmt.Fprint(a.out, a.renderCleanHelp())
+}
+
+func (a *App) renderCleanHelp() string {
+	header := func(s string) string { return a.bold(s) + "\n" }
+	flag := func(name, desc string) string {
+		padded := fmt.Sprintf("%-40s", name)
+		return "  " + a.green(padded) + a.dim(desc) + "\n"
+	}
+
+	return header("imole clean — delete verified files from iPhone") +
+		"\n" +
+		header("Flags") +
+		flag("--manifest PATH", "Required. Path to manifest.json from backup") +
+		flag("--source PATH", "Delete from local mount instead of USB device") +
+		flag("--file REL_PATH", "Delete one verified file; repeatable") +
+		flag("--dry-run", "Preview without deleting (exit 10 = safe)") +
+		flag("--yes", "Skip confirmation prompt") +
+		"\n" +
+		a.dim("  Only files marked verified:true in manifest are deleted.\n") +
+		"\n" +
+		a.dim("Examples:\n") +
+		a.dim("  imole clean --manifest ~/iphone-backup/manifest.json --dry-run\n") +
+		a.dim("  imole clean --manifest ~/backup/manifest.json --yes\n") +
+		a.dim("  imole clean --manifest ~/backup/manifest.json --file DCIM/202507__/IMG_7523.MOV\n") +
+		"\n"
+}
+
 func (a *App) runHelp() {
 	// Banner: ASCII mole + phone art + project info
 	fmt.Fprint(a.out, a.renderBanner())
@@ -75,6 +180,8 @@ func (a *App) renderCommands() string {
 		flag("--older-than 90d|6m|1y", "Filter: files older than age") +
 		flag("--large-than 500MB|1GB", "Filter: files larger than size") +
 		flag("--source PATH", "Scan local mount instead of USB device") +
+		flag("backup --file REL_PATH", "Back up one file from scan output; repeatable") +
+		flag("clean --file REL_PATH", "Delete one verified file from manifest; repeatable") +
 		"\n" +
 		header("Output flags") +
 		flag("--json", "Force JSON output") +
@@ -104,6 +211,10 @@ func (a *App) renderExamples() string {
 			"guide analysis") +
 		ex("Preview then back up old videos",
 			"backup --to ~/iphone-backup --only videos --older-than 90d --dry-run") +
+		ex("Back up one file from scan output",
+			"backup --to ~/iphone-backup --file DCIM/202507__/IMG_7523.MOV --dry-run") +
+		ex("Delete one verified file from a manifest",
+			"clean --manifest ~/iphone-backup/manifest.json --file DCIM/202507__/IMG_7523.MOV --dry-run") +
 		ex("Execute backup and delete verified files",
 			"backup --to ~/iphone-backup --only videos --older-than 90d\n  "+
 				a.cyan("imole")+" clean  --manifest ~/iphone-backup/manifest.json") +

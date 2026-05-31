@@ -22,6 +22,7 @@ type Filter struct {
 	Only      Kind
 	OlderThan time.Duration
 	LargeThan int64
+	Files     []string
 	Now       time.Time
 }
 
@@ -30,6 +31,9 @@ func Default() Filter {
 }
 
 func (f Filter) Match(item media.Item) bool {
+	if len(f.Files) > 0 && !matchFile(f.Files, item) {
+		return false
+	}
 	if f.Only == KindPhotos && !item.IsPhoto() {
 		return false
 	}
@@ -43,6 +47,24 @@ func (f Filter) Match(item media.Item) bool {
 		return false
 	}
 	return true
+}
+
+func matchFile(files []string, item media.Item) bool {
+	for _, file := range files {
+		normalized := NormalizeFile(file)
+		if normalized == item.RelPath {
+			return true
+		}
+	}
+	return false
+}
+
+func NormalizeFile(path string) string {
+	path = strings.TrimSpace(path)
+	path = strings.TrimPrefix(path, "imagecapture://")
+	path = strings.TrimPrefix(path, "./")
+	path = strings.ReplaceAll(path, "\\", "/")
+	return strings.TrimPrefix(path, "/")
 }
 
 func ParseKind(s string) (Kind, error) {
