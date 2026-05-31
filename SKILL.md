@@ -129,6 +129,21 @@ imole doctor --json
 
 Expected: `"device"` block with `"connected": true`. If the device is not connected, ask the user to plug in the iPhone, unlock it, and tap "Trust" on the device screen.
 
+Use device storage pressure to decide how aggressive the cleanup plan should be:
+
+| Free space | Pressure | Agent response |
+|---:|---|---|
+| `< 5%` | Critical | Target immediate reclaim. Prefer large videos and old videos first. |
+| `5-10%` | High | Recommend a concrete backup target large enough to reach at least 15% free. |
+| `10-20%` | Moderate | Offer a conservative plan: oldest/large videos first, then app cleanup guidance. |
+| `> 20%` | Low | Diagnose only; do not push deletion unless user asks. |
+
+Useful fields:
+
+```bash
+imole doctor --json --fields device.name,device.product_type,device.storage.total_data_capacity,device.storage.amount_data_available,device.storage.free_percent
+```
+
 ### Step 2 — Scan to understand what's taking space
 
 ```bash
@@ -139,15 +154,16 @@ Key fields in the response:
 
 | Field | Meaning |
 |---|---|
-| `total_size_human` | Total media size (photos + videos) |
-| `video_size_human` | Videos only — usually the biggest offender |
-| `old_size_human` | Media older than the `--older-than` threshold |
-| `large_size_human` | Files above the `--large-than` threshold |
+| `device.storage.free_percent` | Remaining device storage percentage |
+| `media.total_size` | Total media size (photos + videos) |
+| `media.video_size` | Videos only — usually the biggest offender |
+| `apps.total_size` | App storage estimate from iOS installation_proxy |
+| `top_video.size` | Largest video candidate |
 
 To show only the most useful subset:
 
 ```bash
-imole scan --summary --json --fields total_size_human,video_size_human,old_size_human
+imole scan --summary --json --fields device.storage.free_percent,media.total_size,media.video_size,apps.total_size,top_video
 ```
 
 To focus on videos older than 90 days:
@@ -169,6 +185,8 @@ imole scan --top 20 --only videos --json
 ```
 
 Use this to show the user which specific videos are taking the most space. Let the user decide which age or size threshold to target.
+
+`scan`, `scan apps`, `doctor`, `report`, `history`, `schema`, and `guide` are read-only. Do not add `--dry-run` to them; `--dry-run` is only valid on `backup` and `clean`.
 
 ### Step 4 — Dry-run the backup (preview)
 
@@ -306,9 +324,16 @@ Step-by-step guidance for app cache and system data that iMole cannot auto-clean
 
 ```bash
 imole guide
+imole guide analysis
 imole guide wechat
 imole guide telegram
 imole guide system-data
+```
+
+If the agent does not have this skill document loaded, it can recover the same diagnosis workflow from:
+
+```bash
+imole guide analysis
 ```
 
 ### `imole schema`
@@ -317,6 +342,7 @@ Machine-readable command schema (flags, types, defaults). Use this to discover a
 
 ```bash
 imole schema
+imole schema scan
 imole schema backup
 imole schema clean
 ```
@@ -330,20 +356,28 @@ Use the following decision tree when helping a user free iPhone storage:
 ```
 1. Run `imole doctor --json`
    → device not connected?  Ask user to connect, unlock, and trust the Mac.
+   → read device.storage.free_percent and amount_data_available.
+   → set a target: reach 15-20% free, or reclaim at least 10 GiB if critically low.
 
 2. Run `imole scan --summary --json`
-   → show total_size_human, video_size_human to the user.
-   → if video_size > 5 GB: recommend --only videos first.
+   → compare media.video_size, media.photo_size, apps.total_size, and device free space.
+   → if video_size is large enough to meet the target, recommend videos first.
+   → if app storage dominates, run `imole scan apps --top 20 --json` and give in-app cleanup guidance.
    → tip: use --cache to skip USB scan if result is already fresh.
+   → do not add --dry-run; scan is read-only.
 
 3. Run `imole scan --top 20 --only videos --json` (optional)
    → show the user which specific files are eating space.
-   → ask which age or size threshold to target.
+   → recommend one or two filters that meet the target:
+     `--older-than 1y`, `--older-than 6m`, or `--large-than 500MB`.
+   → ask for confirmation before backup/clean.
 
 4. Ask the user which files to target:
    - Old videos (--only videos --older-than 90d)?
    - Large files (--large-than 500MB)?
    - Everything (omit --only)?
+   Prefer the smallest-risk filter that reaches the reclaim target:
+   old videos > large videos > all videos > photos.
 
 5. Run `imole backup --to ~/imole-backup [filters] --dry-run`
    → confirm count and size with user.

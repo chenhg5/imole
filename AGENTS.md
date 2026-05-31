@@ -42,7 +42,8 @@ A pre-commit hook at `.git/hooks/pre-commit` auto-formats Go files before each c
 
 - Never delete files that are not verified in a manifest.
 - Delete operations must go through `provider.Delete()` only.
-- All destructive commands support `--dry-run` — always verify with dry-run first.
+- Side-effecting commands (`backup`, `clean`) support `--dry-run` — always verify those with dry-run first.
+- Read-only commands (`scan`, `scan apps`, `doctor`, `report`, `history`, `schema`, `guide`) do not accept `--dry-run`.
 - Path validation must reject `..` traversal, relative paths, and empty paths.
 - Only files marked `verified: true` in `manifest.json` are eligible for deletion.
 

@@ -169,9 +169,14 @@ imole schema  [command]             # Machine-readable command schema (agent-fri
 --only all|photos|videos
 --older-than 90d|6m|1y
 --large-than 500MB|1GB
---dry-run        # preview without side effects (exit 10 = safe to proceed)
 --json           # force JSON output
 --fields a,b     # select JSON fields (dot-path notation)
+```
+
+**Preview flags**
+
+```bash
+--dry-run        # backup and clean only; scan is read-only and does not accept it
 ```
 
 **Output**
@@ -179,7 +184,8 @@ imole schema  [command]             # Machine-readable command schema (agent-fri
 JSON is emitted automatically when stdout is not a terminal. Use `--json` to force it in interactive mode. Use `--fields` to select specific fields:
 
 ```bash
-imole scan   --summary --json --fields total_size_human,video_size_human
+imole doctor --json --fields device.name,device.storage.free_percent,device.storage.amount_data_available
+imole scan   --summary --json --fields media.total_size,media.video_size,apps.total_size
 imole report --manifest ./manifest.json --json --fields verified,cleanable_size
 ```
 
@@ -282,7 +288,12 @@ imole clean  --manifest ~/backup/manifest.json --yes
 # Discover available flags
 imole schema scan
 imole schema backup
+
+# Discover the recommended analysis workflow
+imole guide analysis
 ```
+
+Agents should discover flags with `imole schema <command>` before composing a command. Do not add `--dry-run` to read-only commands such as `scan`, `scan apps`, `doctor`, `report`, `history`, `schema`, or `guide`.
 
 ### Letting an AI agent drive imole safely
 
@@ -312,11 +323,27 @@ unset IMOLE_NO_DELETE
 imole clean --manifest ~/backup/manifest.json
 ```
 
+Agent analysis flow:
+
+1. Run `imole doctor --json` and read `device.storage.free_percent`.
+2. Classify pressure: `<5%` critical, `5-10%` high, `10-20%` moderate, `>20%` low.
+3. Run `imole scan --summary --json` and compare media, videos, and app estimates.
+4. If videos can meet the target, propose the least risky filter first: old videos, then large videos, then all videos.
+5. If app storage dominates, run `imole scan apps --top 20 --json` and recommend app-specific cleanup paths. Do not claim iMole can directly clear private app caches.
+6. Dry-run only side-effecting commands: `backup --dry-run`, then `clean --dry-run`.
+
+The same workflow is available directly from the CLI:
+
+```bash
+imole guide analysis
+```
+
 ## Safety Design
 
 iMole treats iPhone media as irreplaceable data, not cache.
 
-- **Preview first** — every destructive command supports `--dry-run`.
+- **Preview first** — side-effecting commands (`backup`, `clean`) support `--dry-run`.
+- **Read-only scans** — `scan` and `scan apps` never modify the device and do not accept `--dry-run`.
 - **Deletion guard** — set `IMOLE_NO_DELETE=1` to block all deletion at the environment level. Useful when running under an AI agent: the agent can scan and back up freely, but cannot delete without the human explicitly unsetting the variable.
 - **Backup before delete** — `clean` reads a `manifest.json`; it refuses to run without one.
 - **Verify before delete** — only files marked `verified: true` in the manifest are eligible for deletion.
@@ -333,7 +360,7 @@ iMole cannot automatically clean:
 ## Tips
 
 - **Start with videos** — one 4K video can be larger than thousands of photos. Run `imole scan --top 20 --only videos` first.
-- **Use `--dry-run`** — always preview before committing. Exit code `10` means the preview passed.
+- **Use `--dry-run` for backup/clean** — always preview side-effecting steps before committing. Exit code `10` means the preview passed.
 - **Narrow the filter** — `--only videos --older-than 1y` recovers the most space with the least risk.
 - **iCloud users** — if iCloud Photos sync is on, deleting via iMole also removes from iCloud. Back up first.
 - **Linux/Windows** — mount the iPhone DCIM folder first (`ifuse` on Linux, iTunes on Windows), then pass `--source PATH`.

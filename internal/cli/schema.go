@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type SchemaCommand struct {
@@ -26,7 +27,7 @@ var commandSchemas = map[string]SchemaCommand{
 		Description: "Check device and local dependencies",
 		Flags: []SchemaFlag{
 			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
-			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output, e.g. device.name,device.udid"},
+			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output, e.g. device.name,device.storage.free_percent"},
 		},
 	},
 	"scan": {
@@ -83,7 +84,7 @@ var commandSchemas = map[string]SchemaCommand{
 		Name:        "guide",
 		Description: "Show cleanup guidance",
 		Flags: []SchemaFlag{
-			{Name: "topic", Type: "string", Default: "", Description: "specific topic: ios-updates, screenshots, whatsapp, etc."},
+			{Name: "topic", Type: "string", Default: "", Enum: []string{"analysis", "photos", "wechat", "system-data"}, Description: "specific topic; analysis is the agent storage diagnosis playbook"},
 		},
 	},
 	"clean": {
@@ -128,6 +129,13 @@ func (a *App) runSchema(ctx context.Context, args []string) int {
 	fs.StringVar(&cmdName, "command", "", "command to show schema for")
 	if err := parseFlags(fs, args); err != nil {
 		a.printError(usageError("invalid schema flags"))
+		return ExitUsage
+	}
+	if cmdName == "" && fs.NArg() > 0 {
+		cmdName = strings.Join(fs.Args(), " ")
+	}
+	if cmdName != "" && fs.NArg() > 0 && strings.Join(fs.Args(), " ") != cmdName {
+		a.printError(usageError("schema accepts one command name"))
 		return ExitUsage
 	}
 

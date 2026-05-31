@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,11 +22,21 @@ type Dependency struct {
 }
 
 type Info struct {
-	UDID        string `json:"udid,omitempty"`
-	Name        string `json:"name,omitempty"`
-	ProductType string `json:"product_type,omitempty"`
-	IOSVersion  string `json:"ios_version,omitempty"`
-	Trusted     bool   `json:"trusted"`
+	UDID        string   `json:"udid,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	ProductType string   `json:"product_type,omitempty"`
+	IOSVersion  string   `json:"ios_version,omitempty"`
+	Trusted     bool     `json:"trusted"`
+	Connected   bool     `json:"connected"`
+	Storage     *Storage `json:"storage,omitempty"`
+}
+
+type Storage struct {
+	TotalDataCapacity   int64   `json:"total_data_capacity"`
+	AmountDataAvailable int64   `json:"amount_data_available"`
+	UsedData            int64   `json:"used_data"`
+	FreePercent         float64 `json:"free_percent"`
+	UsedPercent         float64 `json:"used_percent"`
 }
 
 type DoctorReport struct {
@@ -83,14 +94,14 @@ func checkCommand(name, install string, essential bool) Dependency {
 }
 
 func detectDevice(ctx context.Context) Info {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	idCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	ideviceID, err := syscmd.LookPath("idevice_id")
 	if err != nil {
 		return Info{}
 	}
-	udidOut, err := exec.CommandContext(ctx, ideviceID, "-l").Output()
+	udidOut, err := exec.CommandContext(idCtx, ideviceID, "-l").Output()
 	if err != nil {
 		return Info{}
 	}
@@ -99,7 +110,7 @@ func detectDevice(ctx context.Context) Info {
 		return Info{}
 	}
 
-	info := Info{UDID: udids[0], Trusted: true}
+	info := Info{UDID: udids[0], Trusted: true, Connected: true}
 	fields := map[string]*string{
 		"DeviceName":     &info.Name,
 		"ProductType":    &info.ProductType,
@@ -110,6 +121,9 @@ func detectDevice(ctx context.Context) Info {
 		if err == nil {
 			*target = value
 		}
+	}
+	if storage, err := diskUsage(ctx, info.UDID); err == nil {
+		info.Storage = &storage
 	}
 	return info
 }
@@ -131,4 +145,63 @@ func ideviceInfoValue(ctx context.Context, udid, key string) (string, error) {
 		return "", errors.New("empty device info")
 	}
 	return value, nil
+}
+
+func diskUsage(ctx context.Context, udid string) (Storage, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	ideviceInfo, err := syscmd.LookPath("ideviceinfo")
+	if err != nil {
+		return Storage{}, err
+	}
+	out, err := exec.CommandContext(ctx, ideviceInfo, "-u", udid, "-q", "com.apple.disk_usage").Output()
+	if err != nil {
+		return Storage{}, err
+	}
+	return parseDiskUsage(string(out))
+}
+
+func parseDiskUsage(out string) (Storage, error) {
+	values := make(map[string]int64)
+	for _, line := range strings.Split(out, "\n") {
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		n, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+		if err != nil {
+			continue
+		}
+		values[strings.TrimSpace(key)] = n
+	}
+
+	total := firstPositive(values["TotalDataCapacity"], values["TotalDiskCapacity"])
+	available := firstPositive(values["AmountDataAvailable"], values["TotalDataAvailable"])
+	if total <= 0 {
+		return Storage{}, errors.New("missing TotalDataCapacity")
+	}
+	if available < 0 {
+		available = 0
+	}
+	if available > total {
+		available = total
+	}
+	used := total - available
+	return Storage{
+		TotalDataCapacity:   total,
+		AmountDataAvailable: available,
+		UsedData:            used,
+		FreePercent:         float64(available) * 100 / float64(total),
+		UsedPercent:         float64(used) * 100 / float64(total),
+	}, nil
+}
+
+func firstPositive(values ...int64) int64 {
+	for _, value := range values {
+		if value > 0 {
+			return value
+		}
+	}
+	return 0
 }

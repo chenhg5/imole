@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chenhg5/imole/internal/apps"
+	"github.com/chenhg5/imole/internal/device"
 	"github.com/chenhg5/imole/internal/human"
 	"github.com/chenhg5/imole/internal/media"
 	"github.com/chenhg5/imole/internal/provider"
@@ -53,6 +54,15 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
 	if err := parseFlags(fs, args); err != nil {
+		if strings.Contains(err.Error(), "flag provided but not defined: -dry-run") {
+			a.printError(&Error{
+				Code:       "usage_error",
+				Message:    "scan is read-only and does not accept --dry-run",
+				Suggestion: "Remove --dry-run, or use: imole backup --dry-run / imole clean --dry-run for previews",
+				Retryable:  false,
+			})
+			return ExitUsage
+		}
 		a.printError(usageError(err.Error()))
 		return ExitUsage
 	}
@@ -145,9 +155,12 @@ func (a *App) runScanSummaryAll(ctx context.Context, jsonMode bool, fields strin
 	type combined struct {
 		Media     media.Summary `json:"media"`
 		Apps      appSummary    `json:"apps"`
+		Device    device.Info   `json:"device"`
 		TopVideo  *mediaTop     `json:"top_video,omitempty"`
 		Generated string        `json:"generated"`
 	}
+
+	deviceInfo := device.Check(ctx).Device
 
 	a.status("Scanning media…")
 	mediaResult, mediaErr := scanFromFlags(ctx, "auto", "", 0, 0)
@@ -171,6 +184,7 @@ func (a *App) runScanSummaryAll(ctx context.Context, jsonMode bool, fields strin
 
 	out := combined{
 		Media:     mediaResult.Summary,
+		Device:    deviceInfo,
 		Generated: time.Now().Format(time.RFC3339),
 	}
 	for _, app := range appResult.Apps {
@@ -199,6 +213,12 @@ func (a *App) runScanSummaryAll(ctx context.Context, jsonMode bool, fields strin
 	fmt.Fprintf(a.out, "  Videos:  %s · %d files\n", human.Bytes(out.Media.VideoSize), out.Media.VideoFiles)
 	if out.TopVideo != nil {
 		fmt.Fprintf(a.out, "  Top video: %s · %s\n", out.TopVideo.Name, human.Bytes(out.TopVideo.Size))
+	}
+	if out.Device.Storage != nil {
+		fmt.Fprintf(a.out, "Device:    %s free · %.1f%% free\n",
+			human.Bytes(out.Device.Storage.AmountDataAvailable),
+			out.Device.Storage.FreePercent,
+		)
 	}
 	fmt.Fprintln(a.out)
 	if appErr == nil {

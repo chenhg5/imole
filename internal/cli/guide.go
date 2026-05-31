@@ -11,6 +11,8 @@ func (a *App) runGuide(_ context.Context, args []string) int {
 		topic = args[0]
 	}
 	switch topic {
+	case "analysis", "analyze", "agent", "playbook":
+		fmt.Fprint(a.out, analysisGuide)
 	case "photos", "photo":
 		fmt.Fprint(a.out, photosGuide)
 	case "wechat":
@@ -24,6 +26,10 @@ func (a *App) runGuide(_ context.Context, args []string) int {
 }
 
 const fullGuide = `iPhone slimming guide
+
+For agents and scripts:
+   Run: imole guide analysis
+   Then follow the pressure -> source -> action workflow before proposing cleanup.
 
 1. Photos and videos
    Run: imole scan
@@ -47,11 +53,67 @@ const photosGuide = `Photos and videos
 
 Use iMole to find and back up large media first:
   imole scan
-  imole videos --top 50
+  imole scan --top 50 --only videos
   imole backup --source /path/to/DCIM --to /path/to/backup --only videos --older-than 90d
 
 After verification, delete imported items with Apple Image Capture or Photos,
 then empty Recently Deleted on the iPhone.
+`
+
+const analysisGuide = `iMole storage analysis playbook
+
+Use this when a human asks: "what can I optimize on my iPhone?"
+
+1. Measure storage pressure
+   Run:
+     imole doctor --json --fields device.name,device.product_type,device.storage.total_data_capacity,device.storage.amount_data_available,device.storage.free_percent
+
+   Classify free space:
+     <5%     critical  -> target immediate reclaim
+     5-10%   high      -> plan enough cleanup to reach at least 15% free
+     10-20%  moderate  -> use conservative filters first
+     >20%    low       -> diagnose only unless the user asks to delete
+
+2. Find the largest storage buckets
+   Run:
+     imole scan --summary --json --fields device.storage.free_percent,media.total_size,media.photo_size,media.video_size,apps.total_size,top_video
+
+   Interpret:
+     - If videos are large enough to meet the target, prefer videos first.
+     - If app storage dominates, run app ranking and give in-app cleanup guidance.
+     - App sizes are estimates from iOS installation_proxy and can underreport apps using shared containers.
+
+3. Inspect candidates before proposing action
+   Run:
+     imole scan --top 20 --only videos --json
+     imole scan apps --top 20 --json
+
+   Recommend the smallest-risk media filter that reaches the target:
+     old videos > large videos > all videos > photos
+
+   Typical filters:
+     --only videos --older-than 1y
+     --only videos --older-than 6m
+     --only videos --large-than 500MB
+
+4. Present a concrete plan
+   Good answer shape:
+     - Current pressure: free percent and free size.
+     - Main contributors: media, videos, apps, top video/app.
+     - Recommended first action: exact backup command and expected reclaim.
+     - Manual app cleanup: only for apps iMole cannot safely clean directly.
+     - Risk notes: iCloud Photos and Recently Deleted.
+
+5. Preview side effects only on side-effecting commands
+   Do not add --dry-run to scan, scan apps, doctor, report, history, schema, or guide.
+   Use:
+     imole backup --to ~/imole-backup [filters] --dry-run
+     imole clean --manifest ~/imole-backup/manifest.json --dry-run
+
+6. Safety rule
+   Never recommend deletion until backup completed and report shows verified files.
+   Run:
+     imole report --manifest ~/imole-backup/manifest.json --json
 `
 
 const wechatGuide = `WeChat cleanup

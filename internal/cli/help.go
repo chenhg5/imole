@@ -60,7 +60,7 @@ func (a *App) renderCommands() string {
 		cmd("backup  --to PATH [filters]", "Back up media, write manifest.json") +
 		cmd("report  --manifest PATH", "Summarize a backup manifest") +
 		cmd("clean   --manifest PATH", "Delete verified files from iPhone") +
-		cmd("guide   [topic]", "Step-by-step cleanup guide (WeChat, Telegram…)") +
+		cmd("guide   [topic]", "Cleanup guide; use guide analysis for agent playbook") +
 		cmd("history [--limit N]", "Show recent backup and delete operations") +
 		cmd("update  [--check] [--nightly]", "Update imole to the latest release") +
 		cmd("schema  [command]", "Machine-readable command schema (agent use)") +
@@ -76,10 +76,13 @@ func (a *App) renderCommands() string {
 		flag("--large-than 500MB|1GB", "Filter: files larger than size") +
 		flag("--source PATH", "Scan local mount instead of USB device") +
 		"\n" +
-		header("Output flags  (all commands)") +
+		header("Output flags") +
 		flag("--json", "Force JSON output") +
 		flag("--fields a,b.c", "Select specific JSON fields (dot-path)") +
+		"\n" +
+		header("Preview flags  (backup and clean only)") +
 		flag("--dry-run", "Preview without side effects (exit 10 = safe)") +
+		a.dim("  scan, scan apps, doctor, report, history, schema, and guide are read-only and do not accept --dry-run.\n") +
 		"\n"
 }
 
@@ -97,13 +100,15 @@ func (a *App) renderExamples() string {
 			"scan --top 20 --only videos") +
 		ex("Find apps with the largest private data",
 			"scan apps --top 20") +
+		ex("Show the storage analysis playbook for agents",
+			"guide analysis") +
 		ex("Preview then back up old videos",
 			"backup --to ~/iphone-backup --only videos --older-than 90d --dry-run") +
 		ex("Execute backup and delete verified files",
 			"backup --to ~/iphone-backup --only videos --older-than 90d\n  "+
 				a.cyan("imole")+" clean  --manifest ~/iphone-backup/manifest.json") +
 		ex("Agent-friendly JSON (auto when piped)",
-			"scan --summary --json --fields total_size_human,video_files") +
+			"scan --summary --json --fields device.storage.free_percent,media.video_size,apps.total_size") +
 		ex("Use cached scan to skip 15 s USB wait",
 			"scan --cache --top 30 --only videos") +
 		"\n" +

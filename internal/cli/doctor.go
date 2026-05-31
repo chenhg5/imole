@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/chenhg5/imole/internal/device"
+	"github.com/chenhg5/imole/internal/human"
 )
 
 func (a *App) runDoctor(ctx context.Context, args []string) int {
@@ -55,6 +56,14 @@ func (a *App) runDoctor(ctx context.Context, args []string) int {
 	}
 	if report.Device.IOSVersion != "" {
 		fmt.Fprintf(a.out, "  iOS: %s\n", report.Device.IOSVersion)
+	}
+	if report.Device.Storage != nil {
+		s := report.Device.Storage
+		fmt.Fprintf(a.out, "  Storage: %s used / %s total (%.1f%% free)\n",
+			human.Bytes(s.UsedData),
+			human.Bytes(s.TotalDataCapacity),
+			s.FreePercent,
+		)
 	}
 	return ExitSuccess
 }
