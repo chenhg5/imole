@@ -60,6 +60,7 @@ jobs:
     name: Update Homebrew Tap
     needs: release
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout tap
         uses: actions/checkout@v4
