@@ -1,5 +1,7 @@
 package cli
 
+import "fmt"
+
 // ANSI escape codes. Only applied when a.isTTY is true, so agent/pipe output
 // is always plain text.
 const (
@@ -60,4 +62,12 @@ func (a *App) check(ok bool) string {
 		return a.green("✓")
 	}
 	return a.red("✗")
+}
+
+// status prints a dim status line to stderr so the user knows something is
+// happening. Suppressed when not a TTY (agent / pipe output stays clean).
+func (a *App) status(msg string) {
+	if a.isTTY {
+		fmt.Fprintln(a.err, a.dim(msg))
+	}
 }

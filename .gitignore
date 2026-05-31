@@ -20,3 +20,6 @@ bin/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local scripts and build artifacts
+.local/

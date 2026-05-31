@@ -29,6 +29,7 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 		})
 		return ExitUsage
 	}
+	a.status("Scanning device…")
 	result, err := scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
 	if err != nil {
 		a.printError(runtimeError("scan_failed", err.Error(), "Try: imole scan --source /path/to/DCIM", true))

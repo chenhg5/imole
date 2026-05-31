@@ -18,6 +18,7 @@ func (a *App) runDoctor(ctx context.Context, args []string) int {
 		return ExitUsage
 	}
 
+	a.status("Checking device and dependencies…")
 	report := device.Check(ctx)
 	if a.shouldJSON() || jsonMode {
 		return a.outputJSON(report, fields)

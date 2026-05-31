@@ -45,6 +45,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		return ExitUsage
 	}
 	largeThreshold := f.LargeThan
+	a.status("Scanning device…")
 	result, err := scanFromFlags(ctx, providerName, source, largeThreshold, f.OlderThan)
 	if err != nil {
 		a.printError(runtimeError("scan_failed", err.Error(), "", true))
@@ -55,6 +56,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		fmt.Fprintf(a.err, "Dry-run: preview backup to %s\n", to)
 	}
 
+	a.status(fmt.Sprintf("Backing up %d selected files to %s…", result.Summary.TotalFiles, to))
 	var manifest backup.Manifest
 	if source == "" && (providerName == string(provider.ImageCapture) || providerName == string(provider.Auto)) {
 		manifest, err = a.runProviderBackup(ctx, result, to, f, provider.Name(providerName), dryRun)
