@@ -1,6 +1,9 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // ANSI escape codes. Only applied when a.isTTY is true, so agent/pipe output
 // is always plain text.
@@ -85,6 +88,34 @@ func (a *App) check(ok bool) string {
 		return a.green("✓")
 	}
 	return a.red("✗")
+}
+
+// progressBar returns a visual progress bar string (e.g. "████░░░░░░░░░░░░ 25%").
+// Width is 16 blocks. Bar color is green (<50%), yellow (50-80%), red (>80%).
+func (a *App) progressBar(percent float64) string {
+	total := 16
+	if percent < 0 {
+		percent = 0
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	filled := int(percent / 100 * float64(total))
+	empty := total - filled
+
+	var bar string
+	if a.isTTY {
+		color := a.green
+		if percent >= 80 {
+			color = a.red
+		} else if percent >= 50 {
+			color = a.yellow
+		}
+		bar = color(strings.Repeat("█", filled) + strings.Repeat("░", empty))
+	} else {
+		bar = strings.Repeat("█", filled) + strings.Repeat("░", empty)
+	}
+	return fmt.Sprintf("%s %5.1f%%", bar, percent)
 }
 
 // status prints a status line to stderr. Suppressed only when NO_COLOR is set

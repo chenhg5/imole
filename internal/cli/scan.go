@@ -226,10 +226,8 @@ func (a *App) runScanSummaryAll(ctx context.Context, jsonMode bool, fields strin
 		fmt.Fprintf(a.out, "  Top video: %s · %s\n", out.TopVideo.Name, human.Bytes(out.TopVideo.Size))
 	}
 	if out.Device.Storage != nil {
-		fmt.Fprintf(a.out, "Device:    %s free · %.1f%% free\n",
-			human.Bytes(out.Device.Storage.AmountDataAvailable),
-			out.Device.Storage.FreePercent,
-		)
+		pct := out.Device.Storage.UsedPercent
+		fmt.Fprintf(a.out, "Device:   %s %s free\n", a.progressBar(pct), human.Bytes(out.Device.Storage.AmountDataAvailable))
 	}
 	fmt.Fprintln(a.out)
 	if appErr == nil {
