@@ -26,7 +26,7 @@ func ScanGPhoto(ctx context.Context, opts media.Options) (media.Result, error) {
 	cmd := exec.CommandContext(ctx, gphoto, "--list-files")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return media.Result{}, fmt.Errorf("gphoto2 list failed: %s", strings.TrimSpace(string(out)))
+		return media.Result{}, fmt.Errorf("gphoto2: %s", trimGPhotoError(out))
 	}
 	items := parseGPhotoList(out)
 	if len(items) == 0 {
@@ -37,6 +37,53 @@ func ScanGPhoto(ctx context.Context, opts media.Options) (media.Result, error) {
 	})
 	summary := summarize("gphoto2", items, opts)
 	return media.Result{Summary: summary, Items: items}, nil
+}
+
+// trimGPhotoError extracts the most relevant error line from gphoto2 output.
+// gphoto2 dumps verbose debug text; we want just the one-liner error code.
+func trimGPhotoError(out []byte) string {
+	lines := strings.Split(string(out), "\n")
+	// Prefer lines with "Error" and a code, e.g. "*** Error (-53: ...)"
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if strings.HasPrefix(l, "*** Error (") {
+			// Strip leading/trailing stars and spaces
+			l = strings.Trim(l, "* ")
+			return l
+		}
+	}
+	// Fall back to the first "An error occurred" line
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if strings.HasPrefix(l, "An error occurred") {
+			// Truncate at the first colon+detail if too long
+			if idx := strings.Index(l, "):"); idx > 0 {
+				return l[:idx+1]
+			}
+			if len(l) > 120 {
+				return l[:120] + "…"
+			}
+			return l
+		}
+	}
+	// Last resort: first non-empty line, truncated
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if l != "" && !strings.HasPrefix(l, "***") {
+			if len(l) > 120 {
+				return l[:120] + "…"
+			}
+			return l
+		}
+	}
+	return strings.TrimSpace(string(out[:min(len(out), 120)]))
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func parseGPhotoList(out []byte) []media.Item {

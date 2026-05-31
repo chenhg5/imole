@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/chenhg5/imole/internal/human"
@@ -11,6 +12,21 @@ import (
 	"github.com/chenhg5/imole/internal/provider"
 	"github.com/chenhg5/imole/internal/scancache"
 )
+
+// shortErr returns the first line of err.Error(), truncated to 80 chars.
+func shortErr(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if idx := strings.Index(msg, "\n"); idx > 0 {
+		msg = msg[:idx]
+	}
+	if len(msg) > 80 {
+		return msg[:77] + "…"
+	}
+	return msg
+}
 
 func (a *App) runScan(ctx context.Context, args []string) int {
 	var providerName, source, only, largeThan, oldAgeRaw, fields string
@@ -56,14 +72,28 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 		a.status("Scanning device… (may take ~15 s for USB)")
 		result, err = scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
 		if err != nil {
-			hint := scanHint(providerName, source)
-			a.printError(runtimeError("scan_failed", err.Error(), hint, true))
-			return ExitError
+			// Before reporting failure, check whether a recent cache can save the day.
+			// Use a generous 24-hour fallback window so short-lived USB/ImageCaptureCore
+			// glitches don't break a user's workflow.
+			if fallback, ok := scancache.Read(providerName, source, 24*time.Hour); ok {
+				result = fallback.Result
+				age := time.Since(fallback.ScannedAt)
+				mins := int(math.Round(age.Minutes()))
+				a.status(fmt.Sprintf(
+					"⚠ Live scan failed (%s). Using cached data from %d min ago — re-run when iPhone is accessible.",
+					shortErr(err), mins,
+				))
+			} else {
+				hint := scanHint(providerName, source)
+				a.printError(runtimeError("scan_failed", err.Error(), hint, true))
+				return ExitError
+			}
+		} else {
+			if result.Summary.Root != "" {
+				a.status("Device ready: " + result.Summary.Root)
+			}
+			_ = scancache.Write(providerName, source, result)
 		}
-		if result.Summary.Root != "" {
-			a.status("Device ready: " + result.Summary.Root)
-		}
-		_ = scancache.Write(providerName, source, result)
 	}
 
 	if a.shouldJSON() || jsonMode {
