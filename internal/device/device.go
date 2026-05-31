@@ -110,18 +110,21 @@ func detectDevice(ctx context.Context) Info {
 		return Info{}
 	}
 
-	info := Info{UDID: udids[0], Trusted: true, Connected: true}
+	info := Info{UDID: udids[0], Connected: true}
 	fields := map[string]*string{
 		"DeviceName":     &info.Name,
 		"ProductType":    &info.ProductType,
 		"ProductVersion": &info.IOSVersion,
 	}
+	trusted := false
 	for key, target := range fields {
 		value, err := ideviceInfoValue(ctx, info.UDID, key)
 		if err == nil {
+			trusted = true
 			*target = value
 		}
 	}
+	info.Trusted = trusted
 	if storage, err := diskUsage(ctx, info.UDID); err == nil {
 		info.Storage = &storage
 	}

@@ -46,11 +46,16 @@ func (a *App) runDoctor(ctx context.Context, args []string) int {
 	fmt.Fprintln(a.out)
 	if report.Device.UDID == "" {
 		fmt.Fprintln(a.out, a.yellow("Device: not detected"))
-		fmt.Fprintln(a.out, a.dim("Tip: connect iPhone by USB, unlock it, and tap Trust This Computer."))
+		fmt.Fprintln(a.out, a.dim("Tip: connect iPhone by USB, unlock it, and run: idevicepair pair"))
 		return ExitSuccess
 	}
 	fmt.Fprintf(a.out, "%s %s\n", a.bold("Device:"), a.green(firstNonEmpty(report.Device.Name, "iPhone")))
 	fmt.Fprintf(a.out, "  UDID: %s\n", a.dim(report.Device.UDID))
+	if !report.Device.Trusted {
+		fmt.Fprintf(a.out, "  Trust: %s\n", a.yellow("not paired for libimobiledevice"))
+		fmt.Fprintln(a.out, a.dim("  Run: idevicepair pair"))
+		fmt.Fprintln(a.out, a.dim("  Keep the iPhone unlocked and tap Trust on the device when prompted."))
+	}
 	if report.Device.ProductType != "" {
 		fmt.Fprintf(a.out, "  Model: %s\n", report.Device.ProductType)
 	}

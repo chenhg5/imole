@@ -84,7 +84,7 @@ var commandSchemas = map[string]SchemaCommand{
 		Name:        "guide",
 		Description: "Show cleanup guidance",
 		Flags: []SchemaFlag{
-			{Name: "topic", Type: "string", Default: "", Enum: []string{"analysis", "photos", "wechat", "system-data"}, Description: "specific topic; analysis is the agent storage diagnosis playbook"},
+			{Name: "topic", Type: "string", Default: "", Enum: []string{"analysis", "photos", "wechat", "system-data", "trust"}, Description: "specific topic; analysis is the agent storage diagnosis playbook"},
 		},
 	},
 	"clean": {

@@ -19,6 +19,7 @@ func TestGuideAnalysisExposesAgentPlaybook(t *testing.T) {
 	for _, want := range []string{
 		"storage analysis playbook",
 		"device.storage.free_percent",
+		"idevicepair pair",
 		"imole scan --summary --json",
 		"imole scan apps --top 20 --json",
 		"Do not add --dry-run to scan",

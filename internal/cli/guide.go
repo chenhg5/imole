@@ -19,6 +19,8 @@ func (a *App) runGuide(_ context.Context, args []string) int {
 		fmt.Fprint(a.out, wechatGuide)
 	case "system", "system-data":
 		fmt.Fprint(a.out, systemGuide)
+	case "trust", "pair", "pairing":
+		fmt.Fprint(a.out, trustGuide)
 	default:
 		fmt.Fprint(a.out, fullGuide)
 	}
@@ -67,6 +69,12 @@ Use this when a human asks: "what can I optimize on my iPhone?"
 1. Measure storage pressure
    Run:
      imole doctor --json --fields device.name,device.product_type,device.storage.total_data_capacity,device.storage.amount_data_available,device.storage.free_percent
+
+   If device.storage is missing or trusted=false:
+     idevicepair pair
+     idevicepair validate
+
+   Keep the iPhone unlocked and tap Trust on the device. ImageCapture can sometimes read photos even when libimobiledevice pairing is not trusted yet.
 
    Classify free space:
      <5%     critical  -> target immediate reclaim
@@ -121,6 +129,31 @@ const wechatGuide = `WeChat cleanup
 Open WeChat > Me > Settings > General > Storage.
 Clear cache before deleting chat history. Review large chats manually.
 iMole cannot inspect or delete WeChat private app storage over USB.
+`
+
+const trustGuide = `iPhone USB trust / pairing
+
+iMole uses two different Apple-facing paths:
+  - ImageCaptureCore can read camera roll media on macOS.
+  - libimobiledevice reads device metadata such as total capacity and free space.
+
+It is possible for media scan to work while device storage is unavailable.
+That usually means ImageCapture can see photos, but libimobiledevice is not paired.
+
+To trigger the iPhone "Trust This Computer" prompt:
+  1. Connect the iPhone by USB.
+  2. Unlock the iPhone and keep it on the home screen.
+  3. Run:
+       idevicepair pair
+  4. Tap Trust on the iPhone and enter the passcode if asked.
+  5. Verify:
+       idevicepair validate
+       imole doctor
+
+If no prompt appears:
+  - Unplug and reconnect the cable.
+  - Try a data-capable USB cable and a direct Mac port.
+  - On iPhone: Settings > General > Transfer or Reset iPhone > Reset > Reset Location & Privacy, then run idevicepair pair again.
 `
 
 const systemGuide = `System Data cleanup
