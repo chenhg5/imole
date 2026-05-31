@@ -15,16 +15,37 @@ import (
 const Version = "0.1.0"
 
 type App struct {
-	out   io.Writer
-	err   io.Writer
-	isTTY bool
+	out      io.Writer
+	err      io.Writer
+	isTTY    bool // stdout is an interactive terminal → human-readable output + color
+	errIsTTY bool // stderr is an interactive terminal → show progress/status messages
 }
 
 func New(out, err io.Writer) *App {
-	return &App{out: out, err: err, isTTY: isTerminal(out)}
+	return &App{
+		out:      out,
+		err:      err,
+		isTTY:    isTerminal(out),
+		errIsTTY: isTerminal(err),
+	}
 }
 
+// isTerminal reports whether w looks like an interactive terminal.
+// Priority order:
+//  1. NO_COLOR env var set → false  (https://no-color.org/)
+//  2. FORCE_COLOR env var set → true (explicit override for non-PTY terminals)
+//  3. TERM=dumb → false
+//  4. golang.org/x/term PTY check
 func isTerminal(w io.Writer) bool {
+	if _, ok := os.LookupEnv("NO_COLOR"); ok {
+		return false
+	}
+	if v := os.Getenv("FORCE_COLOR"); v != "" && v != "0" {
+		return true
+	}
+	if os.Getenv("TERM") == "dumb" {
+		return false
+	}
 	if f, ok := w.(*os.File); ok {
 		return term.IsTerminal(int(f.Fd()))
 	}

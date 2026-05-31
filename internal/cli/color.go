@@ -65,9 +65,11 @@ func (a *App) check(ok bool) string {
 }
 
 // status prints a dim status line to stderr so the user knows something is
-// happening. Suppressed when not a TTY (agent / pipe output stays clean).
+// happening. Uses errIsTTY (stderr terminal check) rather than isTTY (stdout),
+// so progress is shown whenever a human is watching stderr — even if stdout is
+// piped to a file or an agent is consuming it.
 func (a *App) status(msg string) {
-	if a.isTTY {
+	if a.errIsTTY {
 		fmt.Fprintln(a.err, a.dim(msg))
 	}
 }
