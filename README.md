@@ -30,12 +30,12 @@ curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bas
 ```bash
 imole doctor                                           # check device is connected
 
-imole stats                                            # see what's eating space
+imole scan --summary                                   # see what's eating space
 # Total:   38,421 files · 286.4 GB
 # Videos:   1,204 files · 172.8 GB
 # Photos:  37,217 files · 113.6 GB
 
-imole videos --top 10                                  # find the biggest culprits
+imole scan --top 10 --only videos                      # find the biggest culprits
 
 imole backup --to ~/iphone-backup --only videos --older-than 90d --dry-run   # preview
 imole backup --to ~/iphone-backup --only videos --older-than 90d              # back up
@@ -130,18 +130,19 @@ imole.exe clean --manifest C:\iphone-backup\manifest.json --source "\\Apple\iPho
 ## Commands
 
 ```
-imole doctor                         Check device connection and dependencies
-imole scan    [filters]              List all media files on connected iPhone
-imole stats   [filters]              Summary stats: total, photos, videos, old, large
-imole videos  [--top N]             Ranked list of largest videos
-imole backup  --to PATH [filters]   Back up matching media, write manifest.json
-imole report  --manifest PATH       Summarize a backup manifest
+imole doctor                                    Check device connection and dependencies
+imole scan    [flags]                           Scan report (summary, top N, or full)
+  --summary                                     Compact stats table
+  --top N [--only videos|photos]                Largest N files sorted by size
+  --cache                                       Skip USB scan, use last cached result (< 1h)
+imole backup  --to PATH [filters]              Back up matching media, write manifest.json
+imole report  --manifest PATH                  Summarize a backup manifest
 imole clean   --manifest PATH [--source PATH]  Delete verified files from iPhone
-imole guide   [topic]               Step-by-step cleanup guide (WeChat, Telegram…)
-imole history [--limit N]           Show recent backup and delete operations
-imole update  [--check]            Update imole to the latest release
-imole update  --nightly            Install latest unreleased build from main branch (requires go)
-imole schema  [command]             Machine-readable command schema (agent-friendly)
+imole guide   [topic]                          Step-by-step cleanup guide (WeChat, Telegram…)
+imole history [--limit N]                      Show recent backup and delete operations
+imole update  [--check]                        Update imole to the latest release
+imole update  --nightly                        Install latest unreleased build from main branch
+imole schema  [command]                        Machine-readable command schema (agent-friendly)
 ```
 
 **Common filters**
@@ -160,7 +161,7 @@ imole schema  [command]             Machine-readable command schema (agent-frien
 JSON is emitted automatically when stdout is not a terminal. Use `--json` to force it in interactive mode. Use `--fields` to select specific fields:
 
 ```bash
-imole stats  --json --fields total_size_human,video_size_human
+imole scan   --summary --json --fields total_size_human,video_size_human
 imole report --manifest ./manifest.json --json --fields verified,cleanable_size
 ```
 
@@ -169,7 +170,7 @@ imole report --manifest ./manifest.json --json --fields verified,cleanable_size
 ### Diagnose what's eating space
 
 ```bash
-$ imole stats
+$ imole scan --summary
 
 iMole Stats
 
@@ -177,15 +178,15 @@ Total:   38,421 files · 286.4 GB
 Photos:  37,217 files · 113.6 GB
 Videos:   1,204 files · 172.8 GB
 
-$ imole videos --top 5
+$ imole scan --top 5 --only videos
 
-Top 5 videos by size
+Top 5 Videos
 
-  1. IMG_8821.MOV   8.2 GB   2025-10-02
-  2. IMG_7731.MOV   4.6 GB   2025-08-11
-  3. IMG_6602.MOV   3.9 GB   2024-12-31
-  4. IMG_5501.MOV   2.1 GB   2024-09-15
-  5. IMG_4412.MOV   1.8 GB   2024-06-20
+   1. IMG_8821.MOV              8.2 GiB  2025-10-02
+   2. IMG_7731.MOV              4.6 GiB  2025-08-11
+   3. IMG_6602.MOV              3.9 GiB  2024-12-31
+   4. IMG_5501.MOV              2.1 GiB  2024-09-15
+   5. IMG_4412.MOV              1.8 GiB  2024-06-20
 ```
 
 ### Back up old videos and delete from device
@@ -248,13 +249,20 @@ $ imole history --json | jq '.[0]'
 
 ```bash
 # Machine-readable stats
-imole stats --json --fields total_size_human,video_files,old_size_human
+imole scan --summary --json --fields total_size_human,video_files,old_size_human
+
+# Top N videos as JSON
+imole scan --top 20 --only videos --json
+
+# Skip the slow USB scan using cached results
+imole scan --cache --summary --json
 
 # Full backup + clean pipeline with no prompts
 imole backup --to ~/backup --only videos --older-than 90d
 imole clean  --manifest ~/backup/manifest.json --yes
 
 # Discover available flags
+imole schema scan
 imole schema backup
 ```
 
@@ -272,7 +280,7 @@ export IMOLE_NO_DELETE=1
 # The agent can now run these safely:
 imole doctor
 imole scan
-imole stats --json
+imole scan --summary --json
 imole backup --to ~/backup --only videos --older-than 90d
 imole report --manifest ~/backup/manifest.json
 
@@ -315,13 +323,14 @@ internal/backup    copy, fast verification, manifest
 internal/report    manifest summaries
 internal/filter    shared filter parsing and matching
 internal/provider  media backends: filesystem, gphoto2, ImageCaptureCore
+internal/scancache scan result disk cache (used by --cache flag)
 internal/human     terminal formatting helpers
 internal/history   operation log (backup and delete audit)
 ```
 
 ## Tips
 
-- **Start with videos** — one 4K video can be larger than thousands of photos. Run `imole videos --top 20` first.
+- **Start with videos** — one 4K video can be larger than thousands of photos. Run `imole scan --top 20 --only videos` first.
 - **Use `--dry-run`** — always preview before committing. Exit code `10` means the preview passed.
 - **Narrow the filter** — `--only videos --older-than 1y` recovers the most space with the least risk.
 - **iCloud users** — if iCloud Photos sync is on, deleting via iMole also removes from iCloud. Back up first.

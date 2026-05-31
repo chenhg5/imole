@@ -132,7 +132,7 @@ Expected: `"device"` block with `"connected": true`. If the device is not connec
 ### Step 2 — Scan to understand what's taking space
 
 ```bash
-imole stats --json
+imole scan --summary --json
 ```
 
 Key fields in the response:
@@ -147,19 +147,25 @@ Key fields in the response:
 To show only the most useful subset:
 
 ```bash
-imole stats --json --fields total_size_human,video_size_human,old_size_human
+imole scan --summary --json --fields total_size_human,video_size_human,old_size_human
 ```
 
 To focus on videos older than 90 days:
 
 ```bash
-imole stats --only videos --older-than 90d --json
+imole scan --summary --only videos --older-than 90d --json
+```
+
+If you already ran a scan recently and don't want to wait ~15 s for USB enumeration:
+
+```bash
+imole scan --cache --summary --json
 ```
 
 ### Step 3 — Inspect the biggest files
 
 ```bash
-imole videos --top 20 --json
+imole scan --top 20 --only videos --json
 ```
 
 Use this to show the user which specific videos are taking the most space. Let the user decide which age or size threshold to target.
@@ -242,33 +248,27 @@ imole doctor --json
 imole doctor --json --fields device.name,device.connected
 ```
 
-### `imole stats`
-
-Agent-friendly summary with pre-computed human-readable sizes. Prefer this over `scan` when you only need totals.
-
-```bash
-imole stats --json
-imole stats --only videos --older-than 1y --json
-imole stats --json --fields total_size_human,video_files,old_size_human
-```
-
 ### `imole scan`
 
-Full file list with per-item metadata.
+Unified scan command — summary, top N by size, or full result.
 
 ```bash
+# Compact stats (for a quick overview)
+imole scan --summary --json
+imole scan --summary --only videos --older-than 1y --json
+imole scan --summary --json --fields total_size_human,video_files,old_size_human
+
+# Top N largest files (replaces old `videos` command)
+imole scan --top 30 --only videos --json
+imole scan --top 10 --only photos --older-than 1y --json
+
+# Use cached scan to skip slow USB enumeration (< 1 h old)
+imole scan --cache --summary --json
+
+# Full scan report with next-step hints
 imole scan --json
 imole scan --only videos --older-than 90d --json
 imole scan --json --fields summary.total_files,summary.video_size
-```
-
-### `imole videos`
-
-Ranked list of largest video files.
-
-```bash
-imole videos --top 30 --json
-imole videos --older-than 1y --top 10 --json
 ```
 
 ### `imole backup`
@@ -331,33 +331,38 @@ Use the following decision tree when helping a user free iPhone storage:
 1. Run `imole doctor --json`
    → device not connected?  Ask user to connect, unlock, and trust the Mac.
 
-2. Run `imole stats --json`
+2. Run `imole scan --summary --json`
    → show total_size_human, video_size_human to the user.
    → if video_size > 5 GB: recommend --only videos first.
+   → tip: use --cache to skip USB scan if result is already fresh.
 
-3. Ask the user which files to target:
+3. Run `imole scan --top 20 --only videos --json` (optional)
+   → show the user which specific files are eating space.
+   → ask which age or size threshold to target.
+
+4. Ask the user which files to target:
    - Old videos (--only videos --older-than 90d)?
    - Large files (--large-than 500MB)?
    - Everything (omit --only)?
 
-4. Run `imole backup --to ~/imole-backup [filters] --dry-run`
+5. Run `imole backup --to ~/imole-backup [filters] --dry-run`
    → confirm count and size with user.
    → exit 10 = safe to continue.
 
-5. Run `imole backup --to ~/imole-backup [filters]`
+6. Run `imole backup --to ~/imole-backup [filters]`
    → check `manifest.summary.failed_files == 0`.
    → if failures > 0: warn user, do NOT proceed with clean.
 
-6. Run `imole report --manifest ~/imole-backup/manifest.json --json`
+7. Run `imole report --manifest ~/imole-backup/manifest.json --json`
    → confirm cleanable == verified.
 
-7. Run `imole clean --manifest ~/imole-backup/manifest.json --dry-run`
+8. Run `imole clean --manifest ~/imole-backup/manifest.json --dry-run`
    → show user what will be deleted.
 
-8. Run `imole clean --manifest ~/imole-backup/manifest.json --yes`
+9. Run `imole clean --manifest ~/imole-backup/manifest.json --yes`
    → tell user to accept the iPhone prompt if one appears.
 
-9. Remind user to clear Recently Deleted in Photos on the iPhone.
+10. Remind user to clear Recently Deleted in Photos on the iPhone.
 ```
 
 ---
@@ -383,8 +388,8 @@ Use the following decision tree when helping a user free iPhone storage:
 
 ```bash
 imole doctor --json
-imole stats --json
-imole videos --top 10 --json
+imole scan --summary --json
+imole scan --top 10 --only videos --json
 ```
 
 Show the user the numbers, then ask which files they want to back up and remove.
