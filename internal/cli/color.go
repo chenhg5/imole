@@ -5,13 +5,15 @@ import "fmt"
 // ANSI escape codes. Only applied when a.isTTY is true, so agent/pipe output
 // is always plain text.
 const (
-	ansiReset  = "\033[0m"
-	ansiBold   = "\033[1m"
-	ansiDim    = "\033[2m"
-	ansiGreen  = "\033[32m"
-	ansiYellow = "\033[33m"
-	ansiCyan   = "\033[36m"
-	ansiRed    = "\033[31m"
+	ansiReset   = "\033[0m"
+	ansiBold    = "\033[1m"
+	ansiDim     = "\033[2m"
+	ansiGreen   = "\033[32m"
+	ansiYellow  = "\033[33m"
+	ansiCyan    = "\033[36m"
+	ansiRed     = "\033[31m"
+	ansiMagenta = "\033[35m"
+	ansiBlue    = "\033[34m"
 )
 
 func (a *App) bold(s string) string {
@@ -54,6 +56,27 @@ func (a *App) red(s string) string {
 		return s
 	}
 	return ansiRed + s + ansiReset
+}
+
+func (a *App) magenta(s string) string {
+	if !a.isTTY {
+		return s
+	}
+	return ansiMagenta + s + ansiReset
+}
+
+func (a *App) blue(s string) string {
+	if !a.isTTY {
+		return s
+	}
+	return ansiBlue + s + ansiReset
+}
+
+func (a *App) boldCyan(s string) string {
+	if !a.isTTY {
+		return s
+	}
+	return ansiBold + ansiCyan + s + ansiReset
 }
 
 // check returns a colored ✓ or ✗ symbol.
