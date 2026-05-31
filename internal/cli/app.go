@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"golang.org/x/term"
 )
@@ -18,11 +20,15 @@ import (
 //	go build -ldflags="-X github.com/chenhg5/imole/internal/cli.Version=x.y.z"
 var Version = "0.1.0"
 
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
 type App struct {
 	out        io.Writer
 	err        io.Writer
-	isTTY      bool // stdout looks interactive → human-readable output + color
-	showStatus bool // stderr should show progress messages
+	in         io.Reader // stdin for interactive prompts
+	isTTY      bool      // stdout looks interactive → human-readable output + color
+	showStatus bool      // stderr should show progress messages
+	debugMode  bool      // --debug: verbose output to stderr
 }
 
 func New(out, err io.Writer) *App {
@@ -30,8 +36,59 @@ func New(out, err io.Writer) *App {
 	return &App{
 		out:        out,
 		err:        err,
+		in:         os.Stdin,
 		isTTY:      tty,
 		showStatus: shouldShowStatus(),
+	}
+}
+
+// startSpinner starts an animated spinner on stderr while a long operation runs.
+// It returns a stop function: call stop("final message") to clear the spinner
+// and optionally print a final status line. Noop when not a TTY.
+func (a *App) startSpinner(msg string) func(finalMsg string) {
+	if !a.isTTY || !a.showStatus {
+		if a.showStatus {
+			fmt.Fprintln(a.err, a.dim(msg))
+		}
+		return func(string) {}
+	}
+
+	stopCh := make(chan string, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		i := 0
+		for {
+			select {
+			case finalMsg := <-stopCh:
+				// Clear the spinner line
+				line := fmt.Sprintf("  %s  %s", spinnerFrames[0], msg)
+				fmt.Fprintf(a.err, "\r%s\r", strings.Repeat(" ", len(line)+4))
+				if finalMsg != "" {
+					fmt.Fprintln(a.err, a.dim(finalMsg))
+				}
+				return
+			default:
+				fmt.Fprintf(a.err, "\r%s %s", a.cyan(spinnerFrames[i%len(spinnerFrames)]), a.dim(msg))
+				i++
+				time.Sleep(80 * time.Millisecond)
+			}
+		}
+	}()
+
+	return func(finalMsg string) {
+		stopCh <- finalMsg
+		wg.Wait()
+	}
+}
+
+// debug writes a verbose debug line to stderr when --debug is active.
+func (a *App) debug(format string, args ...any) {
+	if a.debugMode {
+		msg := a.dim("[debug] " + fmt.Sprintf(format, args...))
+		fmt.Fprintln(a.err, msg)
 	}
 }
 
@@ -80,6 +137,17 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		return ExitSuccess
 	}
 
+	// Strip --debug from args before dispatch so it works with any subcommand.
+	filtered := args[:0:len(args)]
+	for _, arg := range args {
+		if arg == "--debug" {
+			a.debugMode = true
+		} else {
+			filtered = append(filtered, arg)
+		}
+	}
+	args = filtered
+
 	switch args[0] {
 	case "schema":
 		return a.runSchema(ctx, args[1:])
@@ -99,6 +167,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		return a.runHistory(ctx, args[1:])
 	case "update":
 		return a.runUpdate(ctx, args[1:])
+	case "completion":
+		return a.runCompletion(ctx, args[1:])
 	case "help", "--help", "-h":
 		a.runHelp()
 		return ExitSuccess

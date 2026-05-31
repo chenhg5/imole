@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -106,9 +107,10 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	}
 
 	if !fromCache {
-		a.status("Scanning device… (may take ~15 s for USB)")
+		stopSpinner := a.startSpinner("Scanning device… (may take ~15 s for USB)")
 		result, err = scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
 		if err != nil {
+			stopSpinner("")
 			// Before reporting failure, check whether a recent cache can save the day.
 			// Use a generous 24-hour fallback window so short-lived USB/ImageCaptureCore
 			// glitches don't break a user's workflow.
@@ -126,9 +128,12 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 				return ExitError
 			}
 		} else {
-			if result.Summary.Root != "" {
-				a.status("Device ready: " + result.Summary.Root)
+			root := result.Summary.Root
+			if root == "" {
+				root = "device"
 			}
+			stopSpinner(fmt.Sprintf("Device ready: %s  (%d files · %s)", root, result.Summary.TotalFiles, human.Bytes(result.Summary.TotalSize)))
+			a.debug("Scan complete: %d items from %s", len(result.Items), root)
 			_ = scancache.Write(providerName, source, result)
 		}
 	}
@@ -173,9 +178,10 @@ func (a *App) runScanSummaryAll(ctx context.Context, jsonMode bool, fields strin
 
 	deviceInfo := device.Check(ctx).Device
 
-	a.status("Scanning media…")
+	stopSpinner := a.startSpinner("Scanning media…")
 	mediaResult, mediaErr := scanFromFlags(ctx, "auto", "", 0, 0)
 	if mediaErr != nil {
+		stopSpinner("")
 		if fallback, ok := scancache.Read("auto", "", 24*time.Hour); ok {
 			mediaResult = fallback.Result
 			a.status(fmt.Sprintf("⚠ Media scan failed (%s). Using cached media data.", shortErr(mediaErr)))
@@ -184,13 +190,17 @@ func (a *App) runScanSummaryAll(ctx context.Context, jsonMode bool, fields strin
 			return ExitError
 		}
 	} else {
+		stopSpinner(fmt.Sprintf("Media scan complete: %d files · %s", mediaResult.Summary.TotalFiles, human.Bytes(mediaResult.Summary.TotalSize)))
 		_ = scancache.Write("auto", "", mediaResult)
 	}
 
-	a.status("Querying app storage…")
+	stopAppSpinner := a.startSpinner("Querying app storage…")
 	appResult, appErr := apps.List(ctx, apps.ScopeUser)
 	if appErr != nil {
+		stopAppSpinner("")
 		a.status("⚠ App storage unavailable: " + shortErr(appErr))
+	} else {
+		stopAppSpinner(fmt.Sprintf("App storage ready: %d apps", len(appResult.Apps)))
 	}
 
 	out := combined{
@@ -252,18 +262,35 @@ func (a *App) printScanReport(result media.Result, source, largeThan, oldAgeRaw 
 	s := result.Summary
 	fmt.Fprintln(a.out, a.bold("iMole Scan Report"))
 	fmt.Fprintf(a.out, "Source: %s\n\n", a.cyan(s.Root))
-	fmt.Fprintf(a.out, "Media files: %d · %s\n", s.TotalFiles, a.cyan(human.Bytes(s.TotalSize)))
-	fmt.Fprintf(a.out, "Photos:      %d · %s\n", s.PhotoFiles, a.cyan(human.Bytes(s.PhotoSize)))
-	fmt.Fprintf(a.out, "Videos:      %d · %s\n", s.VideoFiles, a.cyan(human.Bytes(s.VideoSize)))
+
+	// Type breakdown with visual bars
+	if s.TotalSize > 0 {
+		photoPct := float64(s.PhotoSize) * 100 / float64(s.TotalSize)
+		videoPct := float64(s.VideoSize) * 100 / float64(s.TotalSize)
+		fmt.Fprintf(a.out, "Photos:      %d files · %s  %s\n",
+			s.PhotoFiles, a.cyan(fmt.Sprintf("%-8s", human.Bytes(s.PhotoSize))), a.green(miniSizeBar(photoPct, 20)))
+		fmt.Fprintf(a.out, "Videos:      %d files · %s  %s\n",
+			s.VideoFiles, a.cyan(fmt.Sprintf("%-8s", human.Bytes(s.VideoSize))), a.yellow(miniSizeBar(videoPct, 20)))
+	} else {
+		fmt.Fprintf(a.out, "Photos:      %d · %s\n", s.PhotoFiles, a.cyan(human.Bytes(s.PhotoSize)))
+		fmt.Fprintf(a.out, "Videos:      %d · %s\n", s.VideoFiles, a.cyan(human.Bytes(s.VideoSize)))
+	}
+	fmt.Fprintf(a.out, "Total:       %d files · %s\n", s.TotalFiles, a.cyan(human.Bytes(s.TotalSize)))
 	if largeThan != "" {
-		fmt.Fprintf(a.out, "Large media: %d · %s (>%s)\n", s.LargeFiles, a.cyan(human.Bytes(s.LargeSize)), largeThan)
+		fmt.Fprintf(a.out, "Large:       %d files · %s (>%s)\n", s.LargeFiles, a.cyan(human.Bytes(s.LargeSize)), largeThan)
 	}
 	if oldAgeRaw != "" {
-		fmt.Fprintf(a.out, "Old media:   %d · %s (>%s)\n", s.OldFiles, a.cyan(human.Bytes(s.OldSize)), oldAgeRaw)
+		fmt.Fprintf(a.out, "Old:         %d files · %s (>%s)\n", s.OldFiles, a.cyan(human.Bytes(s.OldSize)), oldAgeRaw)
 	}
 	if s.ScanSkipped > 0 {
 		fmt.Fprintf(a.out, "Skipped:     %d unreadable entries\n", s.ScanSkipped)
 	}
+
+	// Folder breakdown
+	if len(result.Items) > 0 {
+		a.printScanByFolder(result.Items, s.TotalSize)
+	}
+
 	fmt.Fprintln(a.out)
 	fmt.Fprintln(a.out, a.bold("Recommended next steps:"))
 	fmt.Fprintln(a.out, a.dim("  imole scan --top 30 --only videos"))
@@ -312,4 +339,82 @@ func (a *App) printTopItems(items []media.Item, only string, top int) int {
 		)
 	}
 	return ExitSuccess
+}
+
+// printScanByFolder groups items by DCIM sub-folder and prints a size breakdown.
+func (a *App) printScanByFolder(items []media.Item, totalSize int64) {
+	type folderStat struct {
+		name  string
+		size  int64
+		count int
+	}
+
+	folderMap := make(map[string]*folderStat)
+	for _, item := range items {
+		folder := item.RelPath
+		if idx := strings.Index(folder, "/"); idx >= 0 {
+			folder = folder[:idx]
+		}
+		if folder == "" {
+			folder = "."
+		}
+		if _, ok := folderMap[folder]; !ok {
+			folderMap[folder] = &folderStat{name: folder}
+		}
+		folderMap[folder].size += item.Size
+		folderMap[folder].count++
+	}
+
+	// Sort folders by size descending
+	folders := make([]*folderStat, 0, len(folderMap))
+	for _, f := range folderMap {
+		folders = append(folders, f)
+	}
+	sort.Slice(folders, func(i, j int) bool {
+		return folders[i].size > folders[j].size
+	})
+
+	const maxFolders = 12
+	if len(folders) <= 1 {
+		return
+	}
+
+	fmt.Fprintln(a.out)
+	fmt.Fprintln(a.out, a.bold("By folder:"))
+	shown := folders
+	if len(shown) > maxFolders {
+		shown = shown[:maxFolders]
+	}
+	for _, f := range shown {
+		pct := 0.0
+		if totalSize > 0 {
+			pct = float64(f.size) * 100 / float64(totalSize)
+		}
+		bar := miniSizeBar(pct, 18)
+		color := a.cyan
+		if f.size > totalSize/4 {
+			color = a.yellow
+		}
+		fmt.Fprintf(a.out, "  %-14s %s  %s  (%d files)\n",
+			f.name,
+			color(fmt.Sprintf("%-8s", human.Bytes(f.size))),
+			a.dim(bar),
+			f.count,
+		)
+	}
+	if len(folders) > maxFolders {
+		fmt.Fprintf(a.out, a.dim("  … %d more folders\n"), len(folders)-maxFolders)
+	}
+}
+
+// miniSizeBar returns a compact ASCII bar of the given percentage (0–100).
+func miniSizeBar(pct float64, width int) string {
+	if pct < 0 {
+		pct = 0
+	}
+	if pct > 100 {
+		pct = 100
+	}
+	filled := int(pct / 100 * float64(width))
+	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
 }

@@ -168,6 +168,7 @@ func (a *App) renderCommands() string {
 		cmd("guide   [topic]", "Cleanup guide; use guide analysis for agent playbook") +
 		cmd("history [--limit N]", "Show recent backup and delete operations") +
 		cmd("update  [--check] [--nightly]", "Update imole to the latest release") +
+		cmd("completion [zsh|bash|fish]", "Generate shell tab-completion script") +
 		cmd("schema  [command]", "Machine-readable command schema (agent use)") +
 		"\n" +
 		header("scan flags") +
@@ -189,6 +190,10 @@ func (a *App) renderCommands() string {
 		"\n" +
 		header("Preview flags  (backup and clean only)") +
 		flag("--dry-run", "Preview without side effects (exit 10 = safe)") +
+		flag("--yes", "Skip interactive confirmation prompt (backup, clean)") +
+		"\n" +
+		header("Global flags") +
+		flag("--debug", "Verbose output: provider selection, scan details, storage info") +
 		a.dim("  scan, scan apps, doctor, report, history, schema, and guide are read-only and do not accept --dry-run.\n") +
 		"\n"
 }

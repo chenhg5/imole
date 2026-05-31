@@ -20,7 +20,9 @@ func (a *App) runDoctor(ctx context.Context, args []string) int {
 	}
 
 	a.status("Checking device and dependencies…")
+	stopSpinner := a.startSpinner("Checking device and dependencies…")
 	report := device.Check(ctx)
+	stopSpinner("")
 	if a.shouldJSON() || jsonMode {
 		return a.outputJSON(report, fields)
 	}
@@ -60,15 +62,17 @@ func (a *App) runDoctor(ctx context.Context, args []string) int {
 		fmt.Fprintf(a.out, "  Model: %s\n", report.Device.ProductType)
 	}
 	if report.Device.IOSVersion != "" {
-		fmt.Fprintf(a.out, "  iOS: %s\n", report.Device.IOSVersion)
+		fmt.Fprintf(a.out, "  iOS:   %s\n", report.Device.IOSVersion)
 	}
 	if report.Device.Storage != nil {
 		s := report.Device.Storage
-		fmt.Fprintf(a.out, "  Storage: %s used / %s total (%.1f%% free)\n",
-			human.Bytes(s.UsedData),
-			human.Bytes(s.TotalDataCapacity),
-			s.FreePercent,
+		bar := a.progressBar(s.UsedPercent)
+		fmt.Fprintf(a.out, "  Storage: %s  %s / %s free\n",
+			bar,
+			a.cyan(human.Bytes(s.UsedData)),
+			human.Bytes(s.AmountDataAvailable),
 		)
+		a.debug("storage: used=%d total=%d free=%.1f%%", s.UsedData, s.TotalDataCapacity, s.FreePercent)
 	}
 	return ExitSuccess
 }

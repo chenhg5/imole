@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -26,13 +27,14 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	}
 
 	var providerName, source, to, only, olderThan, largeThan, fields string
-	var dryRun, jsonMode bool
+	var dryRun, jsonMode, yes bool
 	var files stringList
 	fs := flagSet("backup")
 	addProviderFlags(fs, &providerName, &source)
 	fs.StringVar(&to, "to", "", "backup destination")
 	fs.Var(&files, "file", "back up a specific rel_path from scan output; repeat for multiple files")
 	fs.BoolVar(&dryRun, "dry-run", false, "preview backup without copying")
+	fs.BoolVar(&yes, "yes", false, "skip interactive confirmation prompt")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
 	addFilterFlags(fs, &only, &olderThan, &largeThan)
@@ -55,18 +57,51 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		return ExitUsage
 	}
 	largeThreshold := f.LargeThan
-	a.status("Scanning device…")
+	stopSpinner := a.startSpinner("Scanning device…")
 	result, err := scanFromFlags(ctx, providerName, source, largeThreshold, f.OlderThan)
 	if err != nil {
+		stopSpinner("")
 		a.printError(runtimeError("scan_failed", err.Error(), "", true))
 		return ExitError
+	}
+	stopSpinner(fmt.Sprintf("Scan complete: %d files · %s", result.Summary.TotalFiles, human.Bytes(result.Summary.TotalSize)))
+
+	// Count how many files match the filter before confirming
+	selectedItems := provider.FilteredItems(result, f)
+	selectedCount := len(selectedItems)
+	var selectedSize int64
+	for _, item := range selectedItems {
+		selectedSize += item.Size
 	}
 
 	if dryRun {
 		fmt.Fprintf(a.err, "Dry-run: preview backup to %s\n", to)
+	} else if !yes && a.isTTY && selectedCount > 0 {
+		// Interactive confirmation before starting the actual copy
+		fmt.Fprintln(a.out)
+		fmt.Fprintf(a.out, "Ready to back up %s to %s\n",
+			a.cyan(fmt.Sprintf("%d files · %s", selectedCount, human.Bytes(selectedSize))),
+			a.cyan(to))
+		fmt.Fprintf(a.out, "Proceed? [y/N] ")
+		reader := bufio.NewReader(a.in)
+		answer, _ := reader.ReadString('\n')
+		answer = strings.TrimSpace(answer)
+		if answer != "y" && answer != "Y" {
+			fmt.Fprintln(a.out, "Cancelled.")
+			return ExitSuccess
+		}
+		fmt.Fprintln(a.out)
 	}
 
-	a.status(fmt.Sprintf("Backing up %d selected files to %s…", result.Summary.TotalFiles, to))
+	if selectedCount == 0 && !dryRun {
+		fmt.Fprintln(a.out, "No files match the filter — nothing to back up.")
+		if len(result.Items) > 0 {
+			printLargestHint(a.out, result.Items, f)
+		}
+		return ExitSuccess
+	}
+
+	a.status(fmt.Sprintf("Backing up %d files to %s…", selectedCount, to))
 	var manifest backup.Manifest
 	if source == "" && (providerName == string(provider.ImageCapture) || providerName == string(provider.Auto)) {
 		manifest, err = a.runProviderBackup(ctx, result, to, f, provider.Name(providerName), dryRun)
