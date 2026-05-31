@@ -137,16 +137,16 @@ imole.exe clean --manifest C:\iphone-backup\manifest.json --source "\\Apple\iPho
 
 ## Commands
 
-```txt
-imole doctor                          Check device connection and dependencies
-imole scan    [flags]               Scan report (summary, top N, or full)
-imole backup  --to PATH [filters]   Back up matching media, write manifest.json
-imole report  --manifest PATH       Summarize a backup manifest
-imole clean   --manifest PATH       Delete verified files from iPhone
-imole guide   [topic]               Step-by-step cleanup guide (WeChat, Telegram…)
-imole history [--limit N]           Show recent backup and delete operations
-imole update  [--check|--nightly]   Update imole to the latest release
-imole schema  [command]             Machine-readable command schema (agent-friendly)
+```bash
+imole doctor                        # Check device connection and dependencies
+imole scan    [flags]               # Scan report (summary, top N, or full)
+imole backup  --to PATH [filters]   # Back up matching media, write manifest.json
+imole report  --manifest PATH       # Summarize a backup manifest
+imole clean   --manifest PATH       # Delete verified files from iPhone
+imole guide   [topic]               # Step-by-step cleanup guide (WeChat, Telegram…)
+imole history [--limit N]           # Show recent backup and delete operations
+imole update  [--check|--nightly]   # Update imole to the latest release
+imole schema  [command]             # Machine-readable command schema (agent-friendly)
 ```
 
 **Common filters**
@@ -315,22 +315,6 @@ iMole cannot automatically clean:
 - WeChat, Telegram, or other app sandbox storage (use `imole guide` for step-by-step instructions)
 - iOS System Data
 - iCloud-only content (not downloaded to the device)
-
-## Architecture
-
-```
-cmd/imole          CLI entrypoint
-internal/cli       command parsing and presentation
-internal/device    local dependency and iPhone detection
-internal/media     DCIM/media scanning and classification
-internal/backup    copy, fast verification, manifest
-internal/report    manifest summaries
-internal/filter    shared filter parsing and matching
-internal/provider  media backends: filesystem, gphoto2, ImageCaptureCore
-internal/scancache scan result disk cache (used by --cache flag)
-internal/human     terminal formatting helpers
-internal/history   operation log (backup and delete audit)
-```
 
 ## Tips
 
