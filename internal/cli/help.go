@@ -55,7 +55,8 @@ func (a *App) renderCommands() string {
 
 	return header("Commands") +
 		cmd("doctor", "Check device connection and dependencies") +
-		cmd("scan", "Scan iPhone media (see scan flags below)") +
+		cmd("scan", "Scan iPhone storage (media by default)") +
+		cmd("scan apps [--top N]", "Rank apps by iPhone storage usage") +
 		cmd("backup  --to PATH [filters]", "Back up media, write manifest.json") +
 		cmd("report  --manifest PATH", "Summarize a backup manifest") +
 		cmd("clean   --manifest PATH", "Delete verified files from iPhone") +
@@ -65,8 +66,10 @@ func (a *App) renderCommands() string {
 		cmd("schema  [command]", "Machine-readable command schema (agent use)") +
 		"\n" +
 		header("scan flags") +
-		flag("(no flags)", "Full scan report with next-step hints") +
-		flag("--summary", "Compact stats table: total, photos, videos") +
+		flag("(no flags)", "Full media scan report with next-step hints") +
+		flag("--summary", "Combined summary: media + app storage") +
+		flag("media --summary", "Media-only compact stats table") +
+		flag("apps --top N", "App storage ranking") +
 		flag("--top N [--only videos|photos]", "Largest N files sorted by size") +
 		flag("--cache", "Use cached scan (< 1 h old), skip USB wait") +
 		flag("--older-than 90d|6m|1y", "Filter: files older than age") +
@@ -92,6 +95,8 @@ func (a *App) renderExamples() string {
 			"doctor && scan --summary") +
 		ex("Find the biggest video culprits",
 			"scan --top 20 --only videos") +
+		ex("Find apps with the largest private data",
+			"scan apps --top 20") +
 		ex("Preview then back up old videos",
 			"backup --to ~/iphone-backup --only videos --older-than 90d --dry-run") +
 		ex("Execute backup and delete verified files",

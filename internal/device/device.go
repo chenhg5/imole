@@ -38,6 +38,7 @@ func Check(ctx context.Context) DoctorReport {
 		checkCommand("idevice_id", installHint("libimobiledevice"), true),
 		checkCommand("ideviceinfo", installHint("libimobiledevice"), true),
 		checkCommand("idevicepair", installHint("libimobiledevice"), false),
+		checkCommand("ideviceinstaller", installHint("ideviceinstaller"), false),
 		checkCommand("gphoto2", installHint("gphoto2"), false),
 		checkCommand("ifuse", installHint("ifuse"), false),
 	}

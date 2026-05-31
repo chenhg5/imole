@@ -31,13 +31,13 @@ var commandSchemas = map[string]SchemaCommand{
 	},
 	"scan": {
 		Name:        "scan",
-		Description: "Scan media — summary report, top N by size, or compact stats. Replaces old stats and videos commands.",
+		Description: "Scan iPhone storage. --summary shows media + app storage; media subcommand keeps media-only behavior.",
 		Flags: []SchemaFlag{
 			{Name: "provider", Type: "string", Default: "auto", Description: "media provider: auto, filesystem, imagecapture, gphoto"},
 			{Name: "source", Type: "string", Default: "", Description: "scan a local mounted path instead of USB device"},
 			{Name: "only", Type: "string", Default: "all", Enum: []string{"all", "photos", "videos"}, Description: "filter by media type"},
 			{Name: "top", Type: "int", Default: "0", Description: "show top N largest files sorted by size; 0 = summary mode"},
-			{Name: "summary", Type: "bool", Default: "false", Description: "compact stats table only"},
+			{Name: "summary", Type: "bool", Default: "false", Description: "combined media + app summary; use scan media --summary for media-only"},
 			{Name: "cache", Type: "bool", Default: "false", Description: "use cached scan result if available and less than 1 hour old; skips the slow USB enumeration"},
 			{Name: "older-than", Type: "string", Default: "", Description: "filter: older than age, e.g. 90d, 6m, 1y"},
 			{Name: "large-than", Type: "string", Default: "", Description: "filter: larger than size, e.g. 500MB, 1GB"},
@@ -56,6 +56,16 @@ var commandSchemas = map[string]SchemaCommand{
 			{Name: "only", Type: "string", Default: "all", Enum: []string{"all", "photos", "videos"}, Description: "media filter: all, photos, videos"},
 			{Name: "older-than", Type: "string", Default: "", Description: "include media older than an age, e.g. 90d"},
 			{Name: "large-than", Type: "string", Default: "", Description: "include media larger than a size, e.g. 500MB"},
+			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
+			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output"},
+		},
+	},
+	"scan apps": {
+		Name:        "scan apps",
+		Description: "Rank apps by iPhone storage usage using iOS installation_proxy disk usage fields",
+		Flags: []SchemaFlag{
+			{Name: "scope", Type: "string", Default: "user", Enum: []string{"user", "system", "all"}, Description: "apps to list"},
+			{Name: "top", Type: "int", Default: "30", Description: "number of apps to show"},
 			{Name: "json", Type: "bool", Default: "false", Description: "output JSON format"},
 			{Name: "fields", Type: "string", Default: "", Description: "comma-separated dot-paths to include in JSON output"},
 		},

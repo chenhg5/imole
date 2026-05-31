@@ -31,12 +31,14 @@ curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bas
 ```bash
 imole doctor                                           # check device is connected
 
-imole scan --summary                                   # see what's eating space
+imole scan --summary                                   # see media + app storage
 # Total:   38,421 files · 286.4 GB
 # Videos:   1,204 files · 172.8 GB
 # Photos:  37,217 files · 113.6 GB
 
+imole scan media --summary                             # media-only summary
 imole scan --top 10 --only videos                      # find the biggest culprits
+imole scan apps --top 20                               # rank app storage usage
 
 imole backup --to ~/iphone-backup --only videos --older-than 90d --dry-run   # preview
 imole backup --to ~/iphone-backup --only videos --older-than 90d              # back up
@@ -50,6 +52,7 @@ imole clean  --manifest ~/iphone-backup/manifest.json  # delete from iPhone
 ## Features
 
 - **Space diagnosis** — scan DCIM over USB, rank by size, filter by age or kind
+- **App storage ranking** — show iOS-reported App/Data usage with `imole scan apps`
 - **Smart backup** — copy to any local path, organized by year/month, verify by size
 - **Manifest** — every backup writes a `manifest.json` with source path, size, and verification status
 - **Safe deletion** — `imole clean` only deletes files that are `verified: true` in the manifest
@@ -67,6 +70,7 @@ imole clean  --manifest ~/iphone-backup/manifest.json  # delete from iPhone
 | Delete via USB (native) | ✅ ImageCaptureCore | ❌ | ❌ |
 | Delete via `--source PATH` | ✅ | ✅ ifuse | ✅ iTunes mount |
 | Device detection | ✅ | ✅ | ✅ |
+| App storage ranking | ✅ ideviceinstaller | ✅ ideviceinstaller | ➖ |
 
 ## Install
 
@@ -96,11 +100,21 @@ go install github.com/chenhg5/imole/cmd/imole@latest
 
 ## Dependencies
 
-**macOS** — no extra installs needed. ImageCaptureCore is built in. For device info:
+**macOS** — no extra installs needed for media scan/backup. ImageCaptureCore is built in. For device and app storage info:
 
 ```shell
 brew install libimobiledevice   # optional, for imole doctor device details
+brew install ideviceinstaller   # optional, for imole scan apps
 ```
+
+If `ideviceinstaller` is missing, `imole scan --summary` still prints the media
+summary and marks app storage as unavailable. Only `imole scan apps` requires
+`ideviceinstaller`.
+
+`imole scan apps` uses iOS installation_proxy `StaticDiskUsage` and
+`DynamicDiskUsage`. These fields are useful for ranking, but can underreport
+apps that store data in shared App Group containers. Chat apps such as WeChat
+may show less than iPhone Settings → General → iPhone Storage.
 
 **Linux**
 

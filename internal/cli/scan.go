@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chenhg5/imole/internal/apps"
 	"github.com/chenhg5/imole/internal/human"
 	"github.com/chenhg5/imole/internal/media"
 	"github.com/chenhg5/imole/internal/provider"
@@ -29,6 +30,17 @@ func shortErr(err error) string {
 }
 
 func (a *App) runScan(ctx context.Context, args []string) int {
+	if len(args) > 0 {
+		switch args[0] {
+		case "apps", "app":
+			return a.runScanApps(ctx, args[1:])
+		case "media":
+			args = args[1:]
+		default:
+			// Keep ordinary flag parsing for "scan --summary", etc.
+		}
+	}
+
 	var providerName, source, only, largeThan, oldAgeRaw, fields string
 	var top int
 	var jsonMode, summary, useCache bool
@@ -53,6 +65,10 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 			Retryable:  false,
 		})
 		return ExitUsage
+	}
+
+	if summary && source == "" && providerName == "auto" && only == "all" && largeThan == "" && oldAgeRaw == "" && top == 0 {
+		return a.runScanSummaryAll(ctx, jsonMode, fields)
 	}
 
 	var result media.Result
@@ -111,6 +127,96 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 		return a.printScanSummary(result, oldAgeRaw, largeThan)
 	}
 	return a.printScanReport(result, source, largeThan, oldAgeRaw)
+}
+
+func (a *App) runScanSummaryAll(ctx context.Context, jsonMode bool, fields string) int {
+	type appSummary struct {
+		Count       int       `json:"count"`
+		TotalSize   int64     `json:"total_size"`
+		StaticSize  int64     `json:"static_size"`
+		DynamicSize int64     `json:"dynamic_size"`
+		Top         *apps.App `json:"top,omitempty"`
+	}
+	type mediaTop struct {
+		Name    string `json:"name"`
+		Size    int64  `json:"size"`
+		ModTime string `json:"mod_time"`
+	}
+	type combined struct {
+		Media     media.Summary `json:"media"`
+		Apps      appSummary    `json:"apps"`
+		TopVideo  *mediaTop     `json:"top_video,omitempty"`
+		Generated string        `json:"generated"`
+	}
+
+	a.status("Scanning media…")
+	mediaResult, mediaErr := scanFromFlags(ctx, "auto", "", 0, 0)
+	if mediaErr != nil {
+		if fallback, ok := scancache.Read("auto", "", 24*time.Hour); ok {
+			mediaResult = fallback.Result
+			a.status(fmt.Sprintf("⚠ Media scan failed (%s). Using cached media data.", shortErr(mediaErr)))
+		} else {
+			a.printError(runtimeError("scan_failed", mediaErr.Error(), scanHint("auto", ""), true))
+			return ExitError
+		}
+	} else {
+		_ = scancache.Write("auto", "", mediaResult)
+	}
+
+	a.status("Querying app storage…")
+	appResult, appErr := apps.List(ctx, apps.ScopeUser)
+	if appErr != nil {
+		a.status("⚠ App storage unavailable: " + shortErr(appErr))
+	}
+
+	out := combined{
+		Media:     mediaResult.Summary,
+		Generated: time.Now().Format(time.RFC3339),
+	}
+	for _, app := range appResult.Apps {
+		out.Apps.Count++
+		out.Apps.TotalSize += app.TotalSize
+		out.Apps.StaticSize += app.StaticSize
+		out.Apps.DynamicSize += app.DynamicSize
+	}
+	if len(appResult.Apps) > 0 {
+		top := appResult.Apps[0]
+		out.Apps.Top = &top
+	}
+	if topVideos := media.TopItems(mediaResult.Items, "videos", 1); len(topVideos) > 0 {
+		item := topVideos[0]
+		out.TopVideo = &mediaTop{Name: item.Name, Size: item.Size, ModTime: item.ModTime.Format("2006-01-02")}
+	}
+
+	if a.shouldJSON() || jsonMode {
+		return a.outputJSON(out, fields)
+	}
+
+	fmt.Fprintln(a.out, a.bold("iMole Storage Summary"))
+	fmt.Fprintln(a.out)
+	fmt.Fprintf(a.out, "Media:     %s · %d files\n", a.cyan(human.Bytes(out.Media.TotalSize)), out.Media.TotalFiles)
+	fmt.Fprintf(a.out, "  Photos:  %s · %d files\n", human.Bytes(out.Media.PhotoSize), out.Media.PhotoFiles)
+	fmt.Fprintf(a.out, "  Videos:  %s · %d files\n", human.Bytes(out.Media.VideoSize), out.Media.VideoFiles)
+	if out.TopVideo != nil {
+		fmt.Fprintf(a.out, "  Top video: %s · %s\n", out.TopVideo.Name, human.Bytes(out.TopVideo.Size))
+	}
+	fmt.Fprintln(a.out)
+	if appErr == nil {
+		fmt.Fprintf(a.out, "Apps:      %s · %d apps\n", a.cyan(human.Bytes(out.Apps.TotalSize)), out.Apps.Count)
+		fmt.Fprintf(a.out, "  App code: %s\n", human.Bytes(out.Apps.StaticSize))
+		fmt.Fprintf(a.out, "  App data: %s\n", human.Bytes(out.Apps.DynamicSize))
+		if out.Apps.Top != nil {
+			fmt.Fprintf(a.out, "  Top app:  %s · %s\n", out.Apps.Top.Name, human.Bytes(out.Apps.Top.TotalSize))
+		}
+	} else {
+		fmt.Fprintln(a.out, "Apps:      unavailable")
+		fmt.Fprintf(a.out, "  %s\n", appErr.Error())
+	}
+	fmt.Fprintln(a.out)
+	fmt.Fprintln(a.out, a.bold("Recommended next steps:"))
+	fmt.Fprintln(a.out, a.dim("  imole scan --top 30 --only videos"))
+	fmt.Fprintln(a.out, a.dim("  imole scan apps --top 20"))
+	return ExitSuccess
 }
 
 func (a *App) printScanReport(result media.Result, source, largeThan, oldAgeRaw string) int {
