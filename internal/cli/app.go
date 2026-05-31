@@ -15,33 +15,51 @@ import (
 const Version = "0.1.0"
 
 type App struct {
-	out      io.Writer
-	err      io.Writer
-	isTTY    bool // stdout is an interactive terminal → human-readable output + color
-	errIsTTY bool // stderr is an interactive terminal → show progress/status messages
+	out        io.Writer
+	err        io.Writer
+	isTTY      bool // stdout looks interactive → human-readable output + color
+	showStatus bool // stderr should show progress messages
 }
 
 func New(out, err io.Writer) *App {
+	tty := isTerminal(out)
 	return &App{
-		out:      out,
-		err:      err,
-		isTTY:    isTerminal(out),
-		errIsTTY: isTerminal(err),
+		out:        out,
+		err:        err,
+		isTTY:      tty,
+		showStatus: shouldShowStatus(),
 	}
+}
+
+// shouldShowStatus reports whether progress/status messages should be written
+// to stderr. Unlike isTTY (which also respects NO_COLOR for output format),
+// progress messages are shown whenever a human might be watching stderr —
+// unless NO_COLOR is set (which signals fully non-interactive / agent usage).
+func shouldShowStatus() bool {
+	// FORCE_COLOR wins: human explicitly wants interactive output.
+	if v := os.Getenv("FORCE_COLOR"); v != "" && v != "0" {
+		return true
+	}
+	// NO_COLOR signals fully non-interactive / agent mode.
+	if _, ok := os.LookupEnv("NO_COLOR"); ok {
+		return false
+	}
+	// A real PTY on stderr means a human is watching.
+	return term.IsTerminal(int(os.Stderr.Fd()))
 }
 
 // isTerminal reports whether w looks like an interactive terminal.
 // Priority order:
-//  1. NO_COLOR env var set → false  (https://no-color.org/)
-//  2. FORCE_COLOR env var set → true (explicit override for non-PTY terminals)
+//  1. FORCE_COLOR env var set → true  (explicit human override, wins over everything)
+//  2. NO_COLOR env var set → false    (https://no-color.org/, signals agent/non-interactive)
 //  3. TERM=dumb → false
 //  4. golang.org/x/term PTY check
 func isTerminal(w io.Writer) bool {
-	if _, ok := os.LookupEnv("NO_COLOR"); ok {
-		return false
-	}
 	if v := os.Getenv("FORCE_COLOR"); v != "" && v != "0" {
 		return true
+	}
+	if _, ok := os.LookupEnv("NO_COLOR"); ok {
+		return false
 	}
 	if os.Getenv("TERM") == "dumb" {
 		return false
