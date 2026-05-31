@@ -34,6 +34,10 @@ go vet ./...        # vet
 gofmt -w cmd internal  # format
 ```
 
+## Pre-commit Hook
+
+A pre-commit hook at `.git/hooks/pre-commit` auto-formats Go files before each commit. It runs automatically on `git commit` — no extra steps needed.
+
 ## Critical Safety Rules
 
 - Never delete files that are not verified in a manifest.
@@ -45,7 +49,7 @@ gofmt -w cmd internal  # format
 ## Working Rules
 
 - Use `make build` and `go test ./...` before committing.
-- Keep Go code formatted with `gofmt -w cmd internal`.
+- Go files are auto-formatted by the pre-commit hook before each commit — no manual `gofmt` needed.
 - New provider backends must implement the `Provider` interface in `internal/provider/provider.go`.
 - Add tests for new functionality in the same package.
 - Operation logging through `internal/history/` should be preserved for auditability.
