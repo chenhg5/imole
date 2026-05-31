@@ -132,7 +132,7 @@ func (a *App) generateHTMLReport(manifest backup.Manifest, manifestPath, outFile
 		return ExitError
 	}
 
-	if err := os.WriteFile(outFile, []byte(html), 0o644); err != nil {
+	if err := os.WriteFile(outFile, []byte(html), 0o600); err != nil {
 		a.printError(runtimeError("html_write_failed", err.Error(), "", false))
 		return ExitError
 	}

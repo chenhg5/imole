@@ -165,6 +165,7 @@ func (a *App) renderCommands() string {
 		cmd("backup  --to PATH [filters]", "Back up media, write manifest.json") +
 		cmd("report  --manifest PATH", "Summarize a backup manifest") +
 		cmd("clean   --manifest PATH", "Delete verified files from iPhone") +
+		cmd("uninstall --bundle-id ID", "Remove a user-installed app from iPhone") +
 		cmd("guide   [topic]", "Cleanup guide; use guide analysis for agent playbook") +
 		cmd("plan", "Interactive cleanup plan wizard: scan → choose A/B/C → execute") +
 		cmd("history [--limit N]", "Show recent backup and delete operations") +
@@ -191,7 +192,7 @@ func (a *App) renderCommands() string {
 		"\n" +
 		header("Preview flags  (backup and clean only)") +
 		flag("--dry-run", "Preview without side effects (exit 10 = safe)") +
-		flag("--yes", "Skip interactive confirmation prompt (backup, clean)") +
+		flag("--yes", "Skip interactive confirmation prompt (backup, clean, uninstall)") +
 		"\n" +
 		header("Global flags") +
 		flag("--debug", "Verbose output: provider selection, scan details, storage info") +

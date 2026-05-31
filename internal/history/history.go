@@ -15,8 +15,9 @@ const defaultLogName = "operations.jsonl"
 type Kind string
 
 const (
-	KindBackup Kind = "backup"
-	KindClean  Kind = "clean"
+	KindBackup    Kind = "backup"
+	KindClean     Kind = "clean"
+	KindUninstall Kind = "uninstall"
 )
 
 // Entry is a single operation log record.
@@ -27,6 +28,8 @@ type Entry struct {
 	Size         int64     `json:"size"`
 	Destination  string    `json:"destination,omitempty"`   // backup: dest dir
 	ManifestPath string    `json:"manifest_path,omitempty"` // clean: manifest used
+	BundleID     string    `json:"bundle_id,omitempty"`     // uninstall: app bundle ID
+	AppName      string    `json:"app_name,omitempty"`      // uninstall: app display name
 	Failed       int       `json:"failed,omitempty"`
 }
 

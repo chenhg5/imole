@@ -43,6 +43,7 @@ _imole() {
         'scan:scan iPhone media and app storage'
         'backup:copy media to local path with verification'
         'clean:delete verified files from iPhone'
+        'uninstall:remove a user-installed app from iPhone'
         'report:summarise a backup manifest'
         'doctor:check device connection and dependencies'
         'history:show operation log'

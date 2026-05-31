@@ -55,6 +55,13 @@ func (a *App) runHistory(_ context.Context, args []string) int {
 			if e.Failed > 0 {
 				fmt.Fprintf(a.out, "                         (%d failed)\n", e.Failed)
 			}
+		case history.KindUninstall:
+			status := a.green("ok")
+			if e.Failed > 0 {
+				status = a.red("failed")
+			}
+			fmt.Fprintf(a.out, "  %s  uninstall  %s  (%s)  %s  [%s]\n",
+				ts, e.AppName, e.BundleID, human.Bytes(e.Size), status)
 		default:
 			fmt.Fprintf(a.out, "  %s  %s\n", ts, e.Kind)
 		}
