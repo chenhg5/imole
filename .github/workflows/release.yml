@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@4
+        uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@5
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
@@ -31,7 +31,7 @@ jobs:
           cat SHA256SUMS
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@4
+        uses: actions/upload-artifact@v4
         with:
           name: binaries
           path: bin/*
@@ -44,7 +44,7 @@ jobs:
       contents: write
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@4
+        uses: actions/download-artifact@v4
         with:
           name: binaries
           path: bin
@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tap
-        uses: actions/checkout@4
+        uses: actions/checkout@v4
         with:
           repository: chenhg5/homebrew-tap
           path: homebrew-tap
