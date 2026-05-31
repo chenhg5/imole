@@ -68,6 +68,16 @@ func absPath(path string) string {
 	return abs
 }
 
+// scanHint returns a contextually appropriate hint for scan failures.
+// When using imagecapture (USB on macOS), --source is not the right fix.
+func scanHint(providerName, source string) string {
+	if providerName == string(provider.ImageCapture) ||
+		(providerName == string(provider.Auto) && source == "") {
+		return "Make sure iPhone is unlocked, trusted, and the cable supports data transfer"
+	}
+	return "Try specifying the DCIM path: imole scan --source /path/to/DCIM"
+}
+
 func flagSet(name string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)

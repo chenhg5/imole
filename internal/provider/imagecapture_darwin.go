@@ -51,9 +51,28 @@ func ScanImageCapture(ctx context.Context, opts media.Options) (media.Result, er
 			return cached, nil
 		}
 		if os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_CLIENT") != "" {
-			return media.Result{}, fmt.Errorf("ImageCaptureCore did not expose any media files from this SSH session; run iMole from the Mac's Terminal app")
+			return media.Result{}, fmt.Errorf(
+				"imole must run in the Mac's local Terminal app, not over SSH\n" +
+					"  ImageCaptureCore cannot access the iPhone over SSH sessions")
 		}
-		return media.Result{}, fmt.Errorf("ImageCaptureCore did not expose any media files")
+		if payload.Device == "" {
+			// The Swift helper timed out waiting for any device to appear.
+			return media.Result{}, fmt.Errorf(
+				"no iPhone detected — check the following:\n" +
+					"  1. iPhone is connected via USB and the cable is data-capable (not charge-only)\n" +
+					"  2. iPhone is unlocked (show the home/lock screen)\n" +
+					"  3. Tap 'Trust This Computer' on the iPhone if prompted\n" +
+					"  4. Try unplugging and replugging the cable")
+		}
+		// Device was found but Photos library is not accessible.
+		return media.Result{}, fmt.Errorf(
+			"iPhone '%s' connected but Photos library is not accessible\n"+
+				"  Most likely causes:\n"+
+				"  • iCloud Photos is set to 'Optimize iPhone Storage'\n"+
+				"    Fix: iPhone → Settings → Photos → Download and Keep Originals\n"+
+				"  • iPhone screen is locked — unlock it and try again\n"+
+				"  • Photos app privacy denied — iPhone → Settings → Privacy & Security → Photos",
+			payload.Device)
 	}
 
 	result := imageCapturePayloadToResult(payload, opts)

@@ -58,11 +58,15 @@ func (a *App) runStats(ctx context.Context, args []string) int {
 		return ExitUsage
 	}
 
-	a.status("Scanning device…")
+	a.status("Scanning device… (may take ~15 s for USB)")
 	result, err := scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
 	if err != nil {
-		a.printError(runtimeError("scan_failed", err.Error(), "Try: imole stats --source /path/to/DCIM", true))
+		hint := scanHint(providerName, source)
+		a.printError(runtimeError("scan_failed", err.Error(), hint, true))
 		return ExitError
+	}
+	if result.Summary.Root != "" {
+		a.status("Device ready: " + result.Summary.Root)
 	}
 
 	s := result.Summary
