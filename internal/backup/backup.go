@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/chenhg5/imole/internal/filter"
@@ -16,6 +17,7 @@ import (
 type Options struct {
 	Destination string
 	Filter      filter.Filter
+	Layout      string // e.g. "{year}/{month}/{type}/{filename}", empty = default
 	DryRun      bool
 }
 
@@ -46,7 +48,7 @@ func Run(ctx context.Context, scan media.Result, opts Options) (Manifest, error)
 		if err := ctx.Err(); err != nil {
 			return manifest, err
 		}
-		destRel := DestinationRel(item)
+		destRel := DestinationRel(item, opts.Layout)
 		entry := ManifestFile{
 			SourceRel: item.RelPath,
 			DestRel:   destRel,
@@ -85,9 +87,38 @@ func Run(ctx context.Context, scan media.Result, opts Options) (Manifest, error)
 	return manifest, err
 }
 
-func DestinationRel(item media.Item) string {
-	year, month, _ := item.ModTime.Date()
-	return filepath.ToSlash(filepath.Join(fmt.Sprintf("%04d", year), fmt.Sprintf("%02d", int(month)), item.Name))
+// DestinationRel returns the relative destination path for an item.
+// layout supports tokens: {year} {month} {day} {type} {filename} {ext} {date}
+// Empty layout uses the default: {year}/{month}/{filename}
+func DestinationRel(item media.Item, layout string) string {
+	if layout == "" {
+		year, month, _ := item.ModTime.Date()
+		return filepath.ToSlash(filepath.Join(fmt.Sprintf("%04d", year), fmt.Sprintf("%02d", int(month)), item.Name))
+	}
+	return applyLayout(layout, item)
+}
+
+func applyLayout(layout string, item media.Item) string {
+	year, month, day := item.ModTime.Date()
+	ext := item.Ext
+	if len(ext) > 0 && ext[0] == '.' {
+		ext = ext[1:]
+	}
+	typeLabel := item.Kind // "photo", "video", "other"
+	if typeLabel == "photo" {
+		typeLabel = "photos"
+	} else if typeLabel == "video" {
+		typeLabel = "videos"
+	}
+	r := layout
+	r = strings.ReplaceAll(r, "{year}", fmt.Sprintf("%04d", year))
+	r = strings.ReplaceAll(r, "{month}", fmt.Sprintf("%02d", int(month)))
+	r = strings.ReplaceAll(r, "{day}", fmt.Sprintf("%02d", day))
+	r = strings.ReplaceAll(r, "{type}", typeLabel)
+	r = strings.ReplaceAll(r, "{filename}", item.Name)
+	r = strings.ReplaceAll(r, "{ext}", ext)
+	r = strings.ReplaceAll(r, "{date}", fmt.Sprintf("%04d-%02d-%02d", year, int(month), day))
+	return filepath.ToSlash(r)
 }
 
 func copyFile(src, dst string, expectedSize int64) error {

@@ -166,6 +166,7 @@ func (a *App) renderCommands() string {
 		cmd("report  --manifest PATH", "Summarize a backup manifest") +
 		cmd("clean   --manifest PATH", "Delete verified files from iPhone") +
 		cmd("guide   [topic]", "Cleanup guide; use guide analysis for agent playbook") +
+		cmd("plan", "Interactive cleanup plan wizard: scan → choose A/B/C → execute") +
 		cmd("history [--limit N]", "Show recent backup and delete operations") +
 		cmd("update  [--check] [--nightly]", "Update imole to the latest release") +
 		cmd("completion [zsh|bash|fish]", "Generate shell tab-completion script") +

@@ -10,8 +10,9 @@ import (
 
 	"encoding/json"
 
-	"github.com/chenhg5/imole/internal/human"
 	"golang.org/x/term"
+
+	"github.com/chenhg5/imole/internal/human"
 )
 
 type Event struct {

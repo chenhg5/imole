@@ -169,6 +169,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		return a.runUpdate(ctx, args[1:])
 	case "completion":
 		return a.runCompletion(ctx, args[1:])
+	case "plan":
+		return a.runPlan(ctx, args[1:])
 	case "help", "--help", "-h":
 		a.runHelp()
 		return ExitSuccess

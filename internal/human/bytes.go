@@ -9,7 +9,7 @@ func Bytes(n int64) string {
 	}
 	const unit = 1024
 	if n < unit {
-		return fmt.Sprintf("%dB", n)
+		return fmt.Sprintf("%d B", n)
 	}
 	div, exp := int64(unit), 0
 	for v := n / unit; v >= unit && exp < 4; v /= unit {

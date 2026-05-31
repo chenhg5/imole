@@ -19,7 +19,6 @@ func (a *App) runDoctor(ctx context.Context, args []string) int {
 		return ExitUsage
 	}
 
-	a.status("Checking device and dependencies…")
 	stopSpinner := a.startSpinner("Checking device and dependencies…")
 	report := device.Check(ctx)
 	stopSpinner("")

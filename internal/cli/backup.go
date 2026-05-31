@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -26,12 +27,13 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		}
 	}
 
-	var providerName, source, to, only, olderThan, largeThan, fields string
+	var providerName, source, to, only, olderThan, largeThan, fields, layout string
 	var dryRun, jsonMode, yes bool
 	var files stringList
 	fs := flagSet("backup")
 	addProviderFlags(fs, &providerName, &source)
-	fs.StringVar(&to, "to", "", "backup destination")
+	fs.StringVar(&to, "to", "", "backup destination (local path or rclone:remote:path)")
+	fs.StringVar(&layout, "layout", "", `destination layout template, e.g. "{year}/{month}/{type}/{filename}"`)
 	fs.Var(&files, "file", "back up a specific rel_path from scan output; repeat for multiple files")
 	fs.BoolVar(&dryRun, "dry-run", false, "preview backup without copying")
 	fs.BoolVar(&yes, "yes", false, "skip interactive confirmation prompt")
@@ -103,10 +105,20 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 
 	a.status(fmt.Sprintf("Backing up %d files to %s…", selectedCount, to))
 	var manifest backup.Manifest
+
+	// Detect rclone destination: --to rclone:remote:path
+	localDest := to
+	rcloneDest := ""
+	if isRcloneDest(to) {
+		rcloneDest = strings.TrimPrefix(to, "rclone:")
+		localDest = rcloneLocalCache(rcloneDest)
+		a.debug("rclone mode: local staging at %s → %s", localDest, rcloneDest)
+	}
+
 	if source == "" && (providerName == string(provider.ImageCapture) || providerName == string(provider.Auto)) {
-		manifest, err = a.runProviderBackup(ctx, result, to, f, provider.Name(providerName), dryRun)
+		manifest, err = a.runProviderBackup(ctx, result, localDest, f, layout, provider.Name(providerName), dryRun)
 	} else {
-		manifest, err = backup.Run(ctx, result, backup.Options{Destination: to, Filter: f, DryRun: dryRun})
+		manifest, err = backup.Run(ctx, result, backup.Options{Destination: localDest, Filter: f, Layout: layout, DryRun: dryRun})
 	}
 	if err != nil {
 		a.printError(runtimeError("backup_failed", err.Error(), "", false))
@@ -116,6 +128,13 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	if dryRun {
 		fmt.Fprintf(a.err, "Dry-run complete: %d files would be copied (exit 10)\n", manifest.Summary.SelectedFiles)
 		return ExitDryRun
+	}
+
+	// Sync to rclone if requested
+	if rcloneDest != "" && !dryRun {
+		if code := a.runRcloneSync(ctx, localDest, rcloneDest); code != ExitSuccess {
+			return code
+		}
 	}
 
 	if a.shouldJSON() || jsonMode {
@@ -206,7 +225,7 @@ func printLargestHint(w io.Writer, items []media.Item, f filter.Filter) {
 	}
 }
 
-func (a *App) runProviderBackup(ctx context.Context, result media.Result, to string, f filter.Filter, providerName provider.Name, dryRun bool) (backup.Manifest, error) {
+func (a *App) runProviderBackup(ctx context.Context, result media.Result, to string, f filter.Filter, layout string, providerName provider.Name, dryRun bool) (backup.Manifest, error) {
 	manifest := backup.Manifest{
 		Version:   1,
 		CreatedAt: f.Now,
@@ -217,7 +236,7 @@ func (a *App) runProviderBackup(ctx context.Context, result media.Result, to str
 		if !f.Match(item) {
 			continue
 		}
-		destRel := backup.DestinationRel(item)
+		destRel := backup.DestinationRel(item, layout)
 		manifest.Summary.SelectedFiles++
 		manifest.Summary.SelectedSize += item.Size
 		manifest.Files = append(manifest.Files, backup.ManifestFile{
@@ -270,4 +289,40 @@ func (a *App) runProviderBackup(ctx context.Context, result media.Result, to str
 		return manifest, err
 	}
 	return manifest, nil
+}
+
+// isRcloneDest reports whether to is a rclone remote path (rclone:remote:path).
+func isRcloneDest(to string) bool {
+	return strings.HasPrefix(to, "rclone:")
+}
+
+// rcloneLocalCache returns a local staging directory for a rclone destination.
+func rcloneLocalCache(rcloneDest string) string {
+	home, _ := os.UserHomeDir()
+	safe := strings.NewReplacer(":", "_", "/", "_", "\\", "_").Replace(rcloneDest)
+	return filepath.Join(home, ".imole", "rclone-cache", safe)
+}
+
+// runRcloneSync runs `rclone copy src rcloneDest` after a local backup.
+func (a *App) runRcloneSync(ctx context.Context, localDir, rcloneDest string) int {
+	rclone, err := exec.LookPath("rclone")
+	if err != nil {
+		a.printError(runtimeError("rclone_not_found",
+			"rclone not found — cannot sync to remote",
+			"Install rclone: https://rclone.org/install/ then run: imole backup again",
+			false))
+		return ExitError
+	}
+	a.status(fmt.Sprintf("Syncing to %s via rclone…", rcloneDest))
+	cmd := exec.CommandContext(ctx, rclone, "copy", "--progress", localDir, rcloneDest)
+	cmd.Stdout = a.err
+	cmd.Stderr = a.err
+	if err := cmd.Run(); err != nil {
+		a.printError(runtimeError("rclone_sync_failed", err.Error(),
+			fmt.Sprintf("Run manually: rclone copy %q %q", localDir, rcloneDest), false))
+		return ExitError
+	}
+	fmt.Fprintf(a.out, "%s Synced to %s\n", a.green("✓"), a.cyan(rcloneDest))
+	fmt.Fprintf(a.out, "  Local staging: %s\n", a.dim(localDir))
+	return ExitSuccess
 }
