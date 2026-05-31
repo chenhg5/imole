@@ -1,3 +1,4 @@
+// Package apps provides iOS app storage listing via ideviceinstaller.
 package apps
 
 import (
@@ -43,7 +44,7 @@ func List(ctx context.Context, scope Scope) (Result, error) {
 	if scope == "" {
 		scope = ScopeUser
 	}
-	scopeArg := "--user"
+	var scopeArg string
 	switch scope {
 	case ScopeUser:
 		scopeArg = "--user"

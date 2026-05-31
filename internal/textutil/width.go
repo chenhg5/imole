@@ -1,3 +1,4 @@
+// Package textutil provides text display utilities.
 package textutil
 
 func DisplayWidth(s string) int {
