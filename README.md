@@ -257,11 +257,40 @@ imole clean  --manifest ~/backup/manifest.json --yes
 imole schema backup
 ```
 
+### Letting an AI agent drive imole safely
+
+Set `IMOLE_NO_DELETE` before starting your agent session. The agent can scan,
+back up, report, and inspect history freely — but `imole clean` will refuse to
+run and return a structured error. Only the human can delete by unsetting the
+variable.
+
+```bash
+# In your shell profile or before starting the agent:
+export IMOLE_NO_DELETE=1
+
+# The agent can now run these safely:
+imole doctor
+imole scan
+imole stats --json
+imole backup --to ~/backup --only videos --older-than 90d
+imole report --manifest ~/backup/manifest.json
+
+# This will be blocked — clean exits with error code 1:
+imole clean --manifest ~/backup/manifest.json
+# error: IMOLE_NO_DELETE is set — deletion is disabled in this environment
+# hint:  Unset IMOLE_NO_DELETE if you want to allow deletion: unset IMOLE_NO_DELETE
+
+# When you're ready to delete, unset and run manually:
+unset IMOLE_NO_DELETE
+imole clean --manifest ~/backup/manifest.json
+```
+
 ## Safety Design
 
 iMole treats iPhone media as irreplaceable data, not cache.
 
 - **Preview first** — every destructive command supports `--dry-run`.
+- **Deletion guard** — set `IMOLE_NO_DELETE=1` to block all deletion at the environment level. Useful when running under an AI agent: the agent can scan and back up freely, but cannot delete without the human explicitly unsetting the variable.
 - **Backup before delete** — `clean` reads a `manifest.json`; it refuses to run without one.
 - **Verify before delete** — only files marked `verified: true` in the manifest are eligible for deletion.
 - **Audit trail** — `imole history` and `~/.local/share/imole/operations.jsonl` log every backup and delete.

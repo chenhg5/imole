@@ -15,7 +15,25 @@ import (
 	"github.com/chenhg5/imole/internal/provider"
 )
 
+// noDeleteEnv is the environment variable that disables all deletion.
+// Set it to any non-empty value to prevent imole clean from removing files.
+// Useful when letting an AI agent drive imole — the agent can scan and backup
+// freely, but cannot delete without the human explicitly unsetting this guard.
+const noDeleteEnv = "IMOLE_NO_DELETE"
+
 func (a *App) runClean(ctx context.Context, args []string) int {
+	// Check the deletion guard before parsing any flags, so the restriction
+	// is enforced even with --yes or --dry-run.
+	if v := os.Getenv(noDeleteEnv); v != "" {
+		a.printError(&Error{
+			Code:      "delete_disabled",
+			Message:   noDeleteEnv + " is set — deletion is disabled in this environment",
+			Suggestion: "Unset " + noDeleteEnv + " if you want to allow deletion: unset " + noDeleteEnv,
+			Retryable: false,
+		})
+		return ExitError
+	}
+
 	var manifestPath, providerName, sourcePath string
 	var dryRun, yes bool
 	fs := flagSet("clean")
