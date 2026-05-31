@@ -34,7 +34,7 @@ function getPlatformInfo() {
         `Supported: darwin/linux/win32 x64/arm64`
     );
   }
-  const ext = platform === "windows" ? ".zip" : ".tar.gz";
+  const ext = platform === "windows" ? ".exe" : "";
   const filename = `${NAME}-${platform}-${arch}${ext}`;
   const binaryName = platform === "windows" ? `${NAME}.exe` : NAME;
   return { platform, arch, ext, filename, binaryName };
@@ -145,11 +145,7 @@ async function main() {
   const url = `https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${filename}`;
   const data = await download(url);
 
-  if (ext === ".tar.gz") {
-    extractTarGz(data, binDir, binaryName);
-  } else {
-    extractZip(data, binDir, binaryName);
-  }
+  fs.writeFileSync(binaryPath, data);
 
   if (platform !== "windows") {
     fs.chmodSync(binaryPath, 0o755);
