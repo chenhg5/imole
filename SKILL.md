@@ -94,7 +94,19 @@ imole.exe clean --manifest C:\backup\manifest.json --source "\\Apple\iPhone\Inte
 
 ## Installation
 
-### Option A — Install script (recommended)
+### Option A — npm (recommended — works on macOS, Linux, Windows)
+
+```bash
+npm install -g @getimole/imole
+```
+
+Works on all platforms with Node.js installed. Downloads the pre-built binary automatically. Verify with:
+
+```bash
+imole --version
+```
+
+### Option B — Install script (macOS / Linux)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bash
@@ -106,7 +118,7 @@ Installs the pre-built binary to `/usr/local/bin/imole`. Verify with:
 imole --version
 ```
 
-### Option B — Build from source
+### Option C — Build from source
 
 ```bash
 git clone https://github.com/chenhg5/imole.git

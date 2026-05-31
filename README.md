@@ -74,13 +74,21 @@ imole clean  --manifest ~/iphone-backup/manifest.json  # delete from iPhone
 
 ## Install
 
-### Script (recommended)
+### npm (recommended — works on macOS, Linux, and Windows)
+
+```bash
+npm install -g @getimole/imole
+```
+
+Works on all platforms with Node.js installed. Downloads the pre-built binary automatically.
+
+### Script (macOS / Linux)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bash
 ```
 
-### Homebrew (coming soon)
+### Homebrew (macOS, coming soon)
 
 ```bash
 brew install imole
