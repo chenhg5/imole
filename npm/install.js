@@ -63,14 +63,14 @@ function fetch(url, redirects = 5) {
 }
 
 async function download(url) {
-  console.log(`[@chg80333/imole] Downloading ${NAME} ${VERSION} for ${process.platform}/${process.arch}...`);
+  console.log(`[@getimole/imole] Downloading ${NAME} ${VERSION} for ${process.platform}/${process.arch}...`);
   try {
     const data = await fetch(url);
     console.log(`[@chenhg5/imole] Downloaded ${(data.length / 1024 / 1024).toFixed(1)} MB`);
     return data;
   } catch (err) {
     throw new Error(
-      `[@chg80333/imole] Could not download binary.\n` +
+      `[@getimole/imole] Could not download binary.\n` +
         `  ${err.message}\n` +
         `  You can download manually from https://github.com/${GITHUB_REPO}/releases/tag/${VERSION}`
     );
@@ -131,13 +131,13 @@ async function main() {
       });
       const expectedVer = VERSION.slice(1);
       if (out.includes(expectedVer)) {
-        console.log(`[@chg80333/imole] Binary ${VERSION} already installed, skipping.`);
+        console.log(`[@getimole/imole] Binary ${VERSION} already installed, skipping.`);
         return;
       }
-      console.log(`[@chg80333/imole] Existing binary is outdated, upgrading to ${VERSION}...`);
+      console.log(`[@getimole/imole] Existing binary is outdated, upgrading to ${VERSION}...`);
       fs.unlinkSync(binaryPath);
     } catch {
-      console.log(`[@chg80333/imole] Replacing existing binary with ${VERSION}...`);
+      console.log(`[@getimole/imole] Replacing existing binary with ${VERSION}...`);
       fs.unlinkSync(binaryPath);
     }
   }
@@ -158,13 +158,13 @@ async function main() {
   if (platform === "darwin") {
     try {
       execSync(`xattr -d com.apple.quarantine "${binaryPath}"`, { stdio: "pipe" });
-      console.log(`[@chg80333/imole] Removed macOS quarantine attribute`);
+      console.log(`[@getimole/imole] Removed macOS quarantine attribute`);
     } catch {
       // xattr fails if the attribute doesn't exist, which is fine
     }
   }
 
-  console.log(`[@chg80333/imole] Installed to ${binaryPath}`);
+  console.log(`[@getimole/imole] Installed to ${binaryPath}`);
 }
 
 main().catch((err) => {
