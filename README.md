@@ -1,7 +1,7 @@
 <div align="center">
   <h1>iMole</h1>
   <p><em>🐹 Back up, clean, and slim down your iPhone from the terminal.</em></p>
-  <p style="font-size:1.1em; color:#888888;">Inspired by <a href="https://github.com/tw93/mole">Mole</a></p>
+  <p style="font-size:1.1em; color:#aaaaaa;">Inspired by <a href="https://github.com/tw93/mole">Mole</a></p>
 </div>
 
 <p align="center">
@@ -13,6 +13,7 @@
   <a href="https://github.com/chenhg5/imole/releases"><img src="https://img.shields.io/github/v/tag/chenhg5/imole?label=version&style=flat-square" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
   <a href="https://github.com/chenhg5/imole/commits"><img src="https://img.shields.io/github/commit-activity/m/chenhg5/imole?style=flat-square" alt="Commits"></a>
+  <a href="https://t.me/+GclQS9ZnxyI2ODQ1"><img src="https://img.shields.io/badge/chat-Telegram-blue?style=flat-square&logo=Telegram" alt="Telegram"></a>
 </p>
 
 > **Free up your iPhone without buying more iCloud.** iMole scans what's eating your iPhone storage, backs up photos and videos to your computer, verifies each file, and then safely deletes the originals from the device — all from a single command.
@@ -87,36 +88,43 @@ brew install imole
 go install github.com/chenhg5/imole/cmd/imole@latest
 ```
 
+## Command Preview
+
+<p align="center">
+  <img src="docs/images/imole_screenshot.png" alt="imole --help output" width="800"/>
+</p>
+
 ## Dependencies
 
 **macOS** — no extra installs needed. ImageCaptureCore is built in. For device info:
 
-```bash
+```shell
 brew install libimobiledevice   # optional, for imole doctor device details
 ```
 
 **Linux**
 
-```bash
+```shell
 sudo apt install libimobiledevice-utils gphoto2   # USB scan
 sudo apt install ifuse                             # mount DCIM as filesystem
-
-# Full backup + delete workflow via ifuse:
-idevicepair pair                                  # one-time trust pairing
-mkdir -p ~/iphone && ifuse ~/iphone               # mount
-imole backup --source ~/iphone/DCIM --to ~/iphone-backup
-imole clean  --manifest ~/iphone-backup/manifest.json --source ~/iphone/DCIM
-fusermount -u ~/iphone                            # unmount when done
 ```
+
+> **Full backup + delete workflow via ifuse:**
+> ```shell
+> idevicepair pair                                  # one-time trust pairing
+> mkdir -p ~/iphone && ifuse ~/iphone               # mount
+> imole backup --source ~/iphone/DCIM --to ~/iphone-backup
+> imole clean  --manifest ~/iphone-backup/manifest.json --source ~/iphone/DCIM
+> fusermount -u ~/iphone                            # unmount when done
+> ```
 
 **Windows** — install iTunes (provides USB drivers and mounts the iPhone as a browsable device):
 
-```powershell
-# 1. Install iTunes, connect iPhone, unlock and tap "Trust This Computer"
-# 2. Open Windows Explorer → This PC → [iPhone] → Internal Storage → DCIM
-#    Note the path shown in the address bar, e.g.:
-#      \\Apple\iPhone\Internal Storage\DCIM
+> **1.** Install iTunes, connect iPhone, unlock and tap "Trust This Computer"  
+> **2.** Open Windows Explorer → This PC → [iPhone] → Internal Storage → DCIM  
+> **3.** Note the path shown in the address bar, e.g. `\\Apple\iPhone\Internal Storage\DCIM`
 
+```powershell
 # Scan
 imole.exe scan --source "\\Apple\iPhone\Internal Storage\DCIM"
 
@@ -129,20 +137,16 @@ imole.exe clean --manifest C:\iphone-backup\manifest.json --source "\\Apple\iPho
 
 ## Commands
 
-```
-imole doctor                                    Check device connection and dependencies
-imole scan    [flags]                           Scan report (summary, top N, or full)
-  --summary                                     Compact stats table
-  --top N [--only videos|photos]                Largest N files sorted by size
-  --cache                                       Skip USB scan, use last cached result (< 1h)
-imole backup  --to PATH [filters]              Back up matching media, write manifest.json
-imole report  --manifest PATH                  Summarize a backup manifest
-imole clean   --manifest PATH [--source PATH]  Delete verified files from iPhone
-imole guide   [topic]                          Step-by-step cleanup guide (WeChat, Telegram…)
-imole history [--limit N]                      Show recent backup and delete operations
-imole update  [--check]                        Update imole to the latest release
-imole update  --nightly                        Install latest unreleased build from main branch
-imole schema  [command]                        Machine-readable command schema (agent-friendly)
+```txt
+imole doctor                          Check device connection and dependencies
+imole scan    [flags]               Scan report (summary, top N, or full)
+imole backup  --to PATH [filters]   Back up matching media, write manifest.json
+imole report  --manifest PATH       Summarize a backup manifest
+imole clean   --manifest PATH       Delete verified files from iPhone
+imole guide   [topic]               Step-by-step cleanup guide (WeChat, Telegram…)
+imole history [--limit N]           Show recent backup and delete operations
+imole update  [--check|--nightly]   Update imole to the latest release
+imole schema  [command]             Machine-readable command schema (agent-friendly)
 ```
 
 **Common filters**
