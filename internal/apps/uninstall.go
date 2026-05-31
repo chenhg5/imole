@@ -33,9 +33,7 @@ func CheckProtected(bundleID string) error {
 	for _, prefix := range protectedPrefixes {
 		if strings.HasPrefix(bundleID, prefix) {
 			return fmt.Errorf(
-				"bundle ID %q starts with %q — Apple system apps cannot be uninstalled via imole\n"+
-					"  Only user-installed third-party apps are supported.\n"+
-					"  Use: imole scan apps --top 20   to find removable apps.",
+				"bundle ID %q starts with %q — Apple system apps cannot be uninstalled via imole, only user-installed third-party apps are supported (use: imole scan apps --top 20)",
 				bundleID, prefix,
 			)
 		}
