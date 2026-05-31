@@ -1,0 +1,42 @@
+{
+  "name": "imole",
+  "version": "0.3.6",
+  "description": "🐹 Back up, clean, and slim down your iPhone from the terminal",
+  "keywords": [
+    "iphone",
+    "ios",
+    "backup",
+    "photos",
+    "videos",
+    "cleanup",
+    "iphone-storage",
+    "imobiledevice"
+  ],
+  "homepage": "https://github.com/chenhg5/imole",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chenhg5/imole.git"
+  },
+  "license": "MIT",
+  "author": "chenhg5",
+  "bin": {
+    "imole": "run.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "install.js",
+    "run.js",
+    "README.md"
+  ],
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}
