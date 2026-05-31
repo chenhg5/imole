@@ -1,7 +1,7 @@
 <div align="center">
   <h1>iMole</h1>
   <p><em>🐹 Back up, clean, and slim down your iPhone from the terminal.</em></p>
-  <p><sub>Inspired by <a href="https://github.com/tw93/mole">Mole</a></sub></p>
+  <p style="font-size:1.1em; color:#888888;">Inspired by <a href="https://github.com/tw93/mole">Mole</a></p>
 </div>
 
 <p align="center">
