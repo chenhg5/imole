@@ -53,6 +53,12 @@ func (a *App) startSpinner(msg string) func(finalMsg string) {
 		return func(string) {}
 	}
 
+	// Truncate msg so the full spinner line fits on one terminal row.
+	// Prefix "⠋ " = 2 visible chars + ANSI codes; reserve 4 chars of margin.
+	const prefixWidth = 2
+	const margin = 4
+	maxMsg := spinnerMsgWidth(msg, prefixWidth+margin)
+
 	stopCh := make(chan string, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -63,15 +69,14 @@ func (a *App) startSpinner(msg string) func(finalMsg string) {
 		for {
 			select {
 			case finalMsg := <-stopCh:
-				// Clear the spinner line
-				line := fmt.Sprintf("  %s  %s", spinnerFrames[0], msg)
-				fmt.Fprintf(a.err, "\r%s\r", strings.Repeat(" ", len(line)+4))
+				// \r\033[K — go to col 0, erase to end of line (ANSI, no width tracking needed).
+				fmt.Fprintf(a.err, "\r\033[K")
 				if finalMsg != "" {
 					fmt.Fprintln(a.err, a.dim(finalMsg))
 				}
 				return
 			default:
-				fmt.Fprintf(a.err, "\r%s %s", a.cyan(spinnerFrames[i%len(spinnerFrames)]), a.dim(msg))
+				fmt.Fprintf(a.err, "\r%s %s\033[K", a.cyan(spinnerFrames[i%len(spinnerFrames)]), a.dim(maxMsg))
 				i++
 				time.Sleep(80 * time.Millisecond)
 			}
@@ -82,6 +87,23 @@ func (a *App) startSpinner(msg string) func(finalMsg string) {
 		stopCh <- finalMsg
 		wg.Wait()
 	}
+}
+
+// spinnerMsgWidth truncates msg so that (prefixWidth + len(msg)) fits within
+// the current terminal column width. Falls back to 72 columns if unavailable.
+func spinnerMsgWidth(msg string, prefixWidth int) string {
+	cols := 72
+	if w, _, err := term.GetSize(int(os.Stderr.Fd())); err == nil && w > 0 {
+		cols = w
+	}
+	maxLen := cols - prefixWidth
+	if maxLen < 10 {
+		maxLen = 10
+	}
+	if len(msg) <= maxLen {
+		return msg
+	}
+	return msg[:maxLen-1] + "…"
 }
 
 // debug writes a verbose debug line to stderr when --debug is active.

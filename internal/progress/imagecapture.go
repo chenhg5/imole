@@ -32,7 +32,6 @@ type Writer struct {
 	fileSizes     map[string]int64 // path → expected total bytes
 	totalExpected int64            // sum of all file sizes (grows as "start" events arrive)
 	doneBytes     int64            // bytes from fully completed files
-	maxLineLen    int              // last overwritten line length, for clearing
 }
 
 func NewWriter(out io.Writer) *Writer {
@@ -133,24 +132,15 @@ func (w *Writer) print(event Event) {
 	}
 }
 
-// overwrite writes s on the current line using \r (TTY only).
+// overwrite writes s on the current line using \r + ANSI erase (TTY only).
+// \r moves to col 0; \033[K erases from cursor to end of line — no padding needed.
 func (w *Writer) overwrite(s string) {
-	pad := w.maxLineLen - len(s)
-	if pad < 0 {
-		pad = 0
-	}
-	fmt.Fprintf(w.out, "\r%s%s", s, strings.Repeat(" ", pad))
-	if len(s) > w.maxLineLen {
-		w.maxLineLen = len(s)
-	}
+	fmt.Fprintf(w.out, "\r%s\033[K", s)
 }
 
-// clearLine erases the current overwrite line and moves to the start.
+// clearLine erases the current overwrite line and positions cursor at col 0.
 func (w *Writer) clearLine() {
-	if w.maxLineLen > 0 {
-		fmt.Fprintf(w.out, "\r%s\r", strings.Repeat(" ", w.maxLineLen))
-		w.maxLineLen = 0
-	}
+	fmt.Fprintf(w.out, "\r\033[K")
 }
 
 // printLine writes a permanent line (non-TTY or terminal events).

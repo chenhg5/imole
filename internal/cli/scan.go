@@ -10,6 +10,7 @@ import (
 
 	"github.com/chenhg5/imole/internal/apps"
 	"github.com/chenhg5/imole/internal/device"
+	"github.com/chenhg5/imole/internal/filter"
 	"github.com/chenhg5/imole/internal/human"
 	"github.com/chenhg5/imole/internal/media"
 	"github.com/chenhg5/imole/internal/provider"
@@ -55,7 +56,7 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	}
 
 	var providerName, source, only, largeThan, oldAgeRaw, fields string
-	var top int
+	var top, limit int
 	var jsonMode, summary, useCache, withMeta bool
 	var mf metaFlags
 	fs := flagSet("scan")
@@ -64,6 +65,7 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	addMetaFilterFlags(fs, &mf)
 	fs.BoolVar(&withMeta, "with-meta", false, "fetch EXIF metadata (GPS, date, dimensions) — slower first time, cached 7 days")
 	fs.IntVar(&top, "top", 0, "show top N largest files sorted by size; use with --only videos|photos|all")
+	fs.IntVar(&limit, "limit", 0, "cap result to N items after filtering (sorted by size desc); 0 = no limit")
 	fs.BoolVar(&summary, "summary", false, "show compact stats table only")
 	fs.BoolVar(&useCache, "cache", false, "use cached scan result if available and less than 1 hour old")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
@@ -118,7 +120,7 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	if !fromCache {
 		spinMsg := "Scanning device… (may take ~15 s for USB)"
 		if withMeta {
-			spinMsg = "Scanning device with metadata (GPS, date, dimensions)… first run may take up to 60 s, then cached 7 days"
+			spinMsg = "Scanning with metadata (GPS, date)… ~60 s first run, cached 7 days"
 		}
 		stopSpinner := a.startSpinner(spinMsg)
 		result, err = scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan, withMeta)
@@ -165,19 +167,42 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 		}
 	}
 
+	// Apply filter then optional limit (sorted by size desc by default).
+	filtered := provider.FilteredItems(result, f)
+	hasMetaFilter := f.NeedsMetadata()
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+
 	if a.shouldJSON() || jsonMode {
 		if top > 0 {
-			items := media.TopItems(provider.FilteredItems(result, f), only, top)
+			items := media.TopItems(filtered, only, top)
 			return a.outputJSON(items, fields)
+		}
+		if hasMetaFilter || f.Only != "all" || f.OlderThan > 0 || f.LargeThan > 0 || len(f.Files) > 0 {
+			// Return filtered items + mini summary when filters are active.
+			type filteredResult struct {
+				FilteredCount int          `json:"filtered_count"`
+				FilteredSize  int64        `json:"filtered_size"`
+				Items         []media.Item `json:"items"`
+			}
+			var sz int64
+			for _, it := range filtered {
+				sz += it.Size
+			}
+			return a.outputJSON(filteredResult{FilteredCount: len(filtered), FilteredSize: sz, Items: filtered}, fields)
 		}
 		return a.outputJSON(result, fields)
 	}
 
 	if top > 0 {
-		return a.printTopItems(provider.FilteredItems(result, f), only, top)
+		return a.printTopItems(filtered, only, top)
 	}
 	if summary {
 		return a.printScanSummary(result, oldAgeRaw, largeThan)
+	}
+	if hasMetaFilter {
+		return a.printMetaFilterReport(filtered, f)
 	}
 	return a.printScanReport(result, source, largeThan, oldAgeRaw)
 }
@@ -432,6 +457,98 @@ func (a *App) printScanByFolder(items []media.Item, totalSize int64) {
 	if len(folders) > maxFolders {
 		fmt.Fprintf(a.out, a.dim("  … %d more folders\n"), len(folders)-maxFolders)
 	}
+}
+
+// printMetaFilterReport shows a concise result for metadata-filtered scans.
+func (a *App) printMetaFilterReport(items []media.Item, f filter.Filter) int {
+	var totalSize int64
+	for _, it := range items {
+		totalSize += it.Size
+	}
+
+	fmt.Fprintln(a.out, a.bold("iMole Metadata Filter Results"))
+	fmt.Fprintln(a.out)
+
+	if len(items) == 0 {
+		if f.Country != "" {
+			fmt.Fprintf(a.out, "  No items matched country filter %q\n", f.Country)
+			fmt.Fprintln(a.out)
+			fmt.Fprintln(a.out, a.dim("  Note: GPS metadata is only available when scanning a USB-connected iPhone."))
+			fmt.Fprintln(a.out, a.dim("  Use: imole scan --with-meta --country "+f.Country+" (without --source)"))
+		} else {
+			fmt.Fprintln(a.out, "  No items matched the specified metadata filters.")
+		}
+		return ExitSuccess
+	}
+
+	fmt.Fprintf(a.out, "Matched:  %d files · %s\n", len(items), a.cyan(human.Bytes(totalSize)))
+	if f.Country != "" {
+		fmt.Fprintf(a.out, "Country:  %s\n", a.cyan(f.Country))
+	}
+	if f.NoGPS {
+		fmt.Fprintln(a.out, "GPS:      no GPS only")
+	}
+	if !f.TakenAfter.IsZero() || !f.TakenBefore.IsZero() {
+		after := "any"
+		before := "any"
+		if !f.TakenAfter.IsZero() {
+			after = f.TakenAfter.Format("2006-01-02")
+		}
+		if !f.TakenBefore.IsZero() {
+			before = f.TakenBefore.Format("2006-01-02")
+		}
+		fmt.Fprintf(a.out, "Taken:    %s → %s\n", after, before)
+	}
+	fmt.Fprintln(a.out)
+	if len(items) > 0 {
+		fmt.Fprintln(a.out, a.bold("Top files:"))
+		limit := 20
+		if len(items) < limit {
+			limit = len(items)
+		}
+		for i, it := range items[:limit] {
+			loc := ""
+			if it.Country != "" {
+				loc = "  " + a.dim(it.Country)
+			}
+			takenStr := ""
+			if !it.TakenAt.IsZero() {
+				takenStr = "  " + a.dim(it.TakenAt.Format("2006-01-02"))
+			}
+			fmt.Fprintf(a.out, "  %3d. %-30s %s%s%s\n",
+				i+1, it.Name, a.cyan(human.Bytes(it.Size)), takenStr, loc)
+		}
+		if len(items) > 20 {
+			fmt.Fprintf(a.out, a.dim("  … %d more\n"), len(items)-20)
+		}
+	}
+	fmt.Fprintln(a.out)
+	fmt.Fprintln(a.out, a.bold("Next step:"))
+	fmt.Fprintln(a.out, a.dim("  imole backup --to ~/iphone-backup "+buildMetaFlagStr(f)))
+	return ExitSuccess
+}
+
+func buildMetaFlagStr(f filter.Filter) string {
+	var parts []string
+	if f.Country != "" {
+		parts = append(parts, "--country "+f.Country)
+	}
+	if f.NoGPS {
+		parts = append(parts, "--no-gps")
+	}
+	if !f.TakenAfter.IsZero() {
+		parts = append(parts, "--taken-after "+f.TakenAfter.Format("2006-01-02"))
+	}
+	if !f.TakenBefore.IsZero() {
+		parts = append(parts, "--taken-before "+f.TakenBefore.Format("2006-01-02"))
+	}
+	if f.DurationGt > 0 {
+		parts = append(parts, fmt.Sprintf("--duration-gt %.0f", f.DurationGt))
+	}
+	if f.Only != "all" {
+		parts = append(parts, "--only "+string(f.Only))
+	}
+	return strings.Join(parts, " ")
 }
 
 // miniSizeBar returns a compact ASCII bar of the given percentage (0–100).

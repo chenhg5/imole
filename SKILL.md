@@ -299,6 +299,25 @@ imole scan --cache --summary --json
 imole scan --json
 imole scan --only videos --older-than 90d --json
 imole scan --json --fields summary.total_files,summary.video_size
+
+# Limit result to first N items (largest first) after filtering
+imole scan --only videos --limit 20 --json
+
+# Metadata scan (GPS, taken date, dimensions) — first run ~30-60 s, cached 7 days
+imole scan --with-meta --summary --json
+
+# Filter by GPS country / region (auto-enables --with-meta)
+imole scan --country Japan --only photos --json
+imole scan --country CN --only videos --json
+
+# Filter by date range (YYYY-MM-DD)
+imole scan --taken-after 2024-01-01 --taken-before 2024-12-31 --only photos --json
+
+# Videos longer than N seconds
+imole scan --duration-gt 120 --only videos --json
+
+# Photos/videos with no GPS metadata
+imole scan --no-gps --only photos --json
 ```
 
 ### `imole backup`
@@ -310,6 +329,22 @@ imole backup --to /Volumes/External/iphone-backup --only videos --older-than 90d
 imole backup --to ~/backup --file DCIM/202507__/IMG_7523.MOV --dry-run
 imole backup --to ~/backup --only photos --older-than 1y --dry-run
 imole backup --to ~/backup --large-than 500MB --json
+
+# Back up at most N files (largest first)
+imole backup --to ~/backup --only videos --limit 10 --dry-run
+
+# Back up by GPS country (auto-enables --with-meta)
+imole backup --to ~/backup --country Japan --only photos
+imole backup --to ~/backup --country Australia --only videos --dry-run
+
+# Back up by date range
+imole backup --to ~/backup --taken-after 2024-01-01 --taken-before 2024-12-31 --only photos
+
+# Back up videos longer than 2 minutes
+imole backup --to ~/backup --duration-gt 120 --only videos
+
+# Back up items with no GPS (privacy-sensitive cleanup)
+imole backup --to ~/backup --no-gps --only photos
 ```
 
 Use `--file REL_PATH` when the user chooses an exact item from `imole scan --top ...` output. The value should be the item's `rel_path`, and `--file` can be repeated.
@@ -354,6 +389,25 @@ If the agent does not have this skill document loaded, it can recover the same d
 imole guide analysis
 ```
 
+### `imole uninstall`
+
+Remove a **user-installed** app from the iPhone. System apps are protected and cannot be uninstalled.
+
+Requires `IMOLE_NO_DELETE` to be **unset** (same guard as `clean`). Get bundle IDs from `imole scan apps --json`.
+
+```bash
+# Dry-run — preview what would be uninstalled
+imole uninstall --bundle-id com.example.myapp --dry-run
+
+# Uninstall with prompt
+imole uninstall --bundle-id com.example.myapp
+
+# Skip confirmation (scripting)
+imole uninstall --bundle-id com.example.myapp --yes
+```
+
+> Never use `uninstall` on system apps or apps critical to device function. iMole blocks known system bundle ID prefixes (`com.apple.*`, `io.appstore`, etc.).
+
 ### `imole schema`
 
 Machine-readable command schema (flags, types, defaults). Use this to discover available flags.
@@ -363,6 +417,7 @@ imole schema
 imole schema scan
 imole schema backup
 imole schema clean
+imole schema uninstall
 ```
 
 ---
@@ -472,3 +527,36 @@ imole guide wechat
 ```
 
 iMole cannot auto-clean app sandboxes. The guide gives step-by-step instructions.
+
+### "Back up photos from a specific country / trip"
+
+```bash
+# See what GPS countries are represented
+imole scan --with-meta --only photos --json --fields items[].country
+
+# Back up Japan trip photos
+imole backup --to ~/imole-backup/japan --country Japan --only photos --dry-run
+imole backup --to ~/imole-backup/japan --country Japan --only photos
+
+# Back up by date range (e.g. a holiday period)
+imole backup --to ~/imole-backup/holiday --taken-after 2024-12-20 --taken-before 2025-01-05 --only photos
+```
+
+### "Back up just a few of the largest videos (test run)"
+
+```bash
+imole backup --to ~/imole-backup --only videos --limit 5 --dry-run
+```
+
+### "Remove an app from iPhone"
+
+```bash
+# Find the bundle ID first
+imole scan apps --json --top 20
+
+# Dry-run to confirm
+imole uninstall --bundle-id com.example.myapp --dry-run
+
+# Uninstall
+imole uninstall --bundle-id com.example.myapp
+```

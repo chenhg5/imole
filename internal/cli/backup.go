@@ -29,6 +29,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 
 	var providerName, source, to, only, olderThan, largeThan, fields, layout string
 	var dryRun, jsonMode, yes, withMeta bool
+	var limit int
 	var files stringList
 	var mf metaFlags
 	fs := flagSet("backup")
@@ -36,6 +37,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	fs.StringVar(&to, "to", "", "backup destination (local path or rclone:remote:path)")
 	fs.StringVar(&layout, "layout", "", `destination layout template, e.g. "{year}/{month}/{type}/{filename}"`)
 	fs.Var(&files, "file", "back up a specific rel_path from scan output; repeat for multiple files")
+	fs.IntVar(&limit, "limit", 0, "back up at most N files (largest first); 0 = no limit")
 	fs.BoolVar(&dryRun, "dry-run", false, "preview backup without copying")
 	fs.BoolVar(&yes, "yes", false, "skip interactive confirmation prompt")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
@@ -68,7 +70,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	largeThreshold := f.LargeThan
 	spinMsg := "Scanning device…"
 	if withMeta {
-		spinMsg = "Scanning device with metadata (GPS, date, dimensions)…"
+		spinMsg = "Scanning with metadata (GPS, date)… ~60 s first run, cached 7 days"
 	}
 	stopSpinner := a.startSpinner(spinMsg)
 	result, err := scanFromFlags(ctx, providerName, source, largeThreshold, f.OlderThan, withMeta)
@@ -79,8 +81,11 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	}
 	stopSpinner(fmt.Sprintf("Scan complete: %d files · %s", result.Summary.TotalFiles, human.Bytes(result.Summary.TotalSize)))
 
-	// Count how many files match the filter before confirming
+	// Apply filter then optional limit (sorted by size desc).
 	selectedItems := provider.FilteredItems(result, f)
+	if limit > 0 && len(selectedItems) > limit {
+		selectedItems = selectedItems[:limit]
+	}
 	selectedCount := len(selectedItems)
 	var selectedSize int64
 	for _, item := range selectedItems {

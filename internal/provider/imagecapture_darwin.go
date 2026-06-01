@@ -402,7 +402,7 @@ final class Scanner: NSObject, ICDeviceBrowserDelegate, ICDeviceDelegate, ICCame
         if withMeta && !cameraFileRefs.isEmpty {
             pendingMeta = cameraFileRefs.count
             for file in cameraFileRefs {
-                device.requestMetadata(for: file)
+                file.requestMetadata()
             }
         } else {
             done = true

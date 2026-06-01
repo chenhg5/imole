@@ -27,6 +27,7 @@ func (a *App) renderScanHelp() string {
 		header("Media scan flags") +
 		flag("--summary", "Compact stats table: media + app storage") +
 		flag("--top N [--only videos|photos]", "Largest N files sorted by size") +
+		flag("--limit N", "Cap result to N items after filtering (largest first)") +
 		flag("--only all|photos|videos", "Filter by media type") +
 		flag("--older-than 90d|6m|1y", "Filter files older than age") +
 		flag("--large-than 500MB|1GB", "Filter files larger than size") +
@@ -76,6 +77,7 @@ func (a *App) renderBackupHelp() string {
 		flag("--older-than 90d|6m|1y", "Filter files older than age") +
 		flag("--large-than 500MB|1GB", "Filter files larger than size") +
 		flag("--file REL_PATH", "Back up a specific file; repeatable") +
+		flag("--limit N", "Back up at most N files (largest first); 0 = no limit") +
 		flag("--source PATH", "Scan local mount instead of USB device") +
 		flag("--dry-run", "Preview without copying (exit 10 = safe)") +
 		flag("--json", "Force JSON output") +
@@ -199,6 +201,7 @@ func (a *App) renderCommands() string {
 		flag("media --summary", "Media-only compact stats table") +
 		flag("apps --top N", "App storage ranking") +
 		flag("--top N [--only videos|photos]", "Largest N files sorted by size") +
+		flag("--limit N", "Cap to N items after filtering (scan) / back up at most N files (backup)") +
 		flag("--cache", "Use cached scan (< 1 h old), skip USB wait") +
 		flag("--older-than 90d|6m|1y", "Filter: files older than age") +
 		flag("--large-than 500MB|1GB", "Filter: files larger than size") +
