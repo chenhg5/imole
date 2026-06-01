@@ -179,9 +179,23 @@ imole schema  [command]             # Machine-readable command schema (agent-fri
 --only all|photos|videos
 --older-than 90d|6m|1y
 --large-than 500MB|1GB
---file REL_PATH   # backup: select a rel_path; clean: restrict to a verified source_rel in manifest; repeatable
---json           # force JSON output
---fields a,b     # select JSON fields (dot-path notation)
+--ext EXT          # filter by file extension, e.g. png (≈screenshots), heic, mov
+--limit N          # cap to N items after filtering (largest first)
+--file REL_PATH    # backup: select a rel_path; clean: restrict to a verified source_rel in manifest; repeatable
+--json             # force JSON output
+--fields a,b       # select JSON fields (dot-path notation)
+```
+
+**Metadata filters** — require `--with-meta` (fetches EXIF; first run ~30–60 s, cached 7 days)
+
+```bash
+--with-meta                      # enable metadata fetch
+--country NAME                   # e.g. Japan, CN, Asia — filters by GPS-resolved location
+--no-gps                         # keep items without GPS coordinates
+--taken-after / --taken-before   # date range, e.g. --taken-after 2024-01-01
+--duration-gt N                  # videos longer than N seconds
+--min-width / --max-width N      # pixel width range
+--min-height / --max-height N    # pixel height range
 ```
 
 **Preview flags**
@@ -375,6 +389,36 @@ iMole cannot automatically clean:
 - **Narrow the filter** — `--only videos --older-than 1y` recovers the most space with the least risk.
 - **iCloud users** — if iCloud Photos sync is on, deleting via iMole also removes from iCloud. Back up first.
 - **Linux/Windows** — mount the iPhone DCIM folder first (`ifuse` on Linux, iTunes on Windows), then pass `--source PATH`.
+- **Finding screenshots** — iPhone screenshots are always saved as PNG files, while camera photos are HEIC or JPEG. Use `--ext png` to locate them. Add `--min-width` and `--min-height` (with `--with-meta`) to match exact screen dimensions for near-certain identification. See the [Identify screenshots](#identify-and-back-up-screenshots) example below.
+
+### Identify and back up screenshots
+
+iPhone screenshots are always `.png`; camera photos are `.heic` or `.jpeg`. This makes `--ext png` a reliable first filter — but occasionally PNG files arrive via AirDrop or messaging apps, so the match is high-confidence rather than absolute.
+
+For near-certain identification, combine with screen-dimension filtering (requires `--with-meta`):
+
+| Device | Screen resolution |
+|---|---|
+| iPhone 16 Pro | 1206 × 2622 |
+| iPhone 15 Pro | 1179 × 2556 |
+| iPhone 14 / 15 | 1170 × 2532 |
+| iPhone SE (3rd gen) | 750 × 1334 |
+
+```bash
+# Step 1 — quick count (no metadata needed)
+imole scan --ext png --json
+
+# Step 2 — precise match using screen dimensions (fetches EXIF, cached after first run)
+imole scan --ext png --min-width 1100 --min-height 2400 --json
+
+# Step 3 — back up screenshots before cleaning
+imole backup --to ~/iphone-backup/screenshots --ext png --dry-run
+imole backup --to ~/iphone-backup/screenshots --ext png
+
+# Step 4 — or with dimension precision
+imole backup --to ~/iphone-backup/screenshots --ext png --min-width 1100 --min-height 2400 --dry-run
+imole backup --to ~/iphone-backup/screenshots --ext png --min-width 1100 --min-height 2400
+```
 
 ## Acknowledgments
 

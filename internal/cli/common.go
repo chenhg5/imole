@@ -36,13 +36,17 @@ type metaFlags struct {
 	takenAfter  string
 	takenBefore string
 	durationGt  float64
+	minWidth    int
+	minHeight   int
+	maxWidth    int
+	maxHeight   int
 }
 
-func parseFilter(only, olderThan, largeThan string, files []string) (filter.Filter, error) {
-	return parseFilterMeta(only, olderThan, largeThan, files, metaFlags{})
+func parseFilter(only, olderThan, largeThan, ext string, files []string) (filter.Filter, error) {
+	return parseFilterMeta(only, olderThan, largeThan, ext, files, metaFlags{})
 }
 
-func parseFilterMeta(only, olderThan, largeThan string, files []string, meta metaFlags) (filter.Filter, error) {
+func parseFilterMeta(only, olderThan, largeThan, ext string, files []string, meta metaFlags) (filter.Filter, error) {
 	f := filter.Default()
 	kind, err := filter.ParseKind(only)
 	if err != nil {
@@ -64,11 +68,16 @@ func parseFilterMeta(only, olderThan, largeThan string, files []string, meta met
 		}
 		f.LargeThan = size
 	}
+	f.Ext = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(ext), "."))
 
 	// Metadata filters.
 	f.Country = strings.TrimSpace(meta.country)
 	f.NoGPS = meta.noGPS
 	f.DurationGt = meta.durationGt
+	f.MinWidth = meta.minWidth
+	f.MinHeight = meta.minHeight
+	f.MaxWidth = meta.maxWidth
+	f.MaxHeight = meta.maxHeight
 	if meta.takenAfter != "" {
 		t, err := parseDate(meta.takenAfter)
 		if err != nil {
@@ -126,10 +135,11 @@ func scanFromFlags(ctx context.Context, providerName, source string, largeThresh
 	})
 }
 
-func addFilterFlags(fs *flag.FlagSet, only, olderThan, largeThan *string) {
+func addFilterFlags(fs *flag.FlagSet, only, olderThan, largeThan, ext *string) {
 	fs.StringVar(only, "only", "all", "media filter: all, photos, videos")
 	fs.StringVar(olderThan, "older-than", "", "include media older than an age, e.g. 90d, 6m, 1y")
 	fs.StringVar(largeThan, "large-than", "", "include media larger than a size, e.g. 500MB, 1GB")
+	fs.StringVar(ext, "ext", "", "filter by file extension, e.g. png (≈screenshots), heic, mov")
 }
 
 func addMetaFilterFlags(fs *flag.FlagSet, m *metaFlags) {
@@ -138,6 +148,10 @@ func addMetaFilterFlags(fs *flag.FlagSet, m *metaFlags) {
 	fs.StringVar(&m.takenAfter, "taken-after", "", "keep items taken on or after date, e.g. 2023-01-01 (requires --with-meta)")
 	fs.StringVar(&m.takenBefore, "taken-before", "", "keep items taken before date, e.g. 2024-01-01 (requires --with-meta)")
 	fs.Float64Var(&m.durationGt, "duration-gt", 0, "keep videos longer than N seconds (requires --with-meta)")
+	fs.IntVar(&m.minWidth, "min-width", 0, "keep items with width >= N pixels (requires --with-meta)")
+	fs.IntVar(&m.minHeight, "min-height", 0, "keep items with height >= N pixels (requires --with-meta)")
+	fs.IntVar(&m.maxWidth, "max-width", 0, "keep items with width <= N pixels (requires --with-meta)")
+	fs.IntVar(&m.maxHeight, "max-height", 0, "keep items with height <= N pixels (requires --with-meta)")
 }
 
 func addProviderFlags(fs *flag.FlagSet, providerName, source *string) {

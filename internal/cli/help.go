@@ -29,6 +29,7 @@ func (a *App) renderScanHelp() string {
 		flag("--top N [--only videos|photos]", "Largest N files sorted by size") +
 		flag("--limit N", "Cap result to N items after filtering (largest first)") +
 		flag("--only all|photos|videos", "Filter by media type") +
+		flag("--ext EXT", "Filter by file extension, e.g. png (≈screenshots), heic, mov") +
 		flag("--older-than 90d|6m|1y", "Filter files older than age") +
 		flag("--large-than 500MB|1GB", "Filter files larger than size") +
 		flag("--source PATH", "Scan local mount instead of USB device") +
@@ -41,6 +42,10 @@ func (a *App) renderScanHelp() string {
 		flag("--taken-after DATE", "Keep items taken on or after YYYY-MM-DD") +
 		flag("--taken-before DATE", "Keep items taken before YYYY-MM-DD") +
 		flag("--duration-gt N", "Keep videos longer than N seconds") +
+		flag("--min-width N", "Keep items with width >= N pixels (requires --with-meta)") +
+		flag("--min-height N", "Keep items with height >= N pixels (requires --with-meta)") +
+		flag("--max-width N", "Keep items with width <= N pixels (requires --with-meta)") +
+		flag("--max-height N", "Keep items with height <= N pixels (requires --with-meta)") +
 		"\n" +
 		header("Output flags") +
 		flag("--json", "Force JSON output") +
@@ -74,6 +79,7 @@ func (a *App) renderBackupHelp() string {
 		header("Flags") +
 		flag("--to PATH", "Required. Destination directory for backup") +
 		flag("--only all|photos|videos", "Filter by media type") +
+		flag("--ext EXT", "Filter by file extension, e.g. png (≈screenshots), heic, mov") +
 		flag("--older-than 90d|6m|1y", "Filter files older than age") +
 		flag("--large-than 500MB|1GB", "Filter files larger than size") +
 		flag("--file REL_PATH", "Back up a specific file; repeatable") +
@@ -90,6 +96,10 @@ func (a *App) renderBackupHelp() string {
 		flag("--taken-after DATE", "Back up items taken on or after YYYY-MM-DD") +
 		flag("--taken-before DATE", "Back up items taken before YYYY-MM-DD") +
 		flag("--duration-gt N", "Back up videos longer than N seconds") +
+		flag("--min-width N", "Back up items with width >= N pixels (requires --with-meta)") +
+		flag("--min-height N", "Back up items with height >= N pixels (requires --with-meta)") +
+		flag("--max-width N", "Back up items with width <= N pixels (requires --with-meta)") +
+		flag("--max-height N", "Back up items with height <= N pixels (requires --with-meta)") +
 		"\n" +
 		a.dim("Examples:\n") +
 		a.dim("  imole backup --to ~/iphone-backup --only videos --older-than 90d\n") +

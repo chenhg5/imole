@@ -117,7 +117,8 @@ final class Downloader: NSObject, ICDeviceBrowserDelegate, ICDeviceDelegate, ICC
     let destRoot: URL
     var catalogReady = false
     var done = false
-    var catalog: [String: ICCameraFile] = [:]
+    var catalog: [String: ICCameraFile] = [:]     // full path → file
+    var nameCatalog: [String: ICCameraFile] = [:] // filename only → file (fallback)
     var results: [ResultItem] = []
     var currentIndex = 0
     var currentDownloaded: Int64 = 0
@@ -134,13 +135,21 @@ final class Downloader: NSObject, ICDeviceBrowserDelegate, ICDeviceDelegate, ICC
 
     func run() {
         browser.start()
-        let catalogUntil = Date().addingTimeInterval(60)
+        // Large libraries (10k+ files) can take 2-3 min for iOS to enumerate the full catalog.
+        let catalogTimeout: TimeInterval = 180
+        let catalogUntil = Date().addingTimeInterval(catalogTimeout)
+        var lastLog = Date()
         while !catalogReady && Date() < catalogUntil {
-            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.2))
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.5))
+            if Date().timeIntervalSince(lastLog) >= 15 {
+                let remaining = Int(catalogUntil.timeIntervalSinceNow)
+                fputs("catalog: waiting for iPhone to enumerate files… (\(remaining)s remaining)\n", stderr)
+                lastLog = Date()
+            }
         }
         if !catalogReady {
             for item in selection.items {
-                results.append(ResultItem(source_rel: item.path, dest_rel: item.dest_rel, verified: false, skipped: false, error: "timeout waiting for ImageCaptureCore catalog"))
+                results.append(ResultItem(source_rel: item.path, dest_rel: item.dest_rel, verified: false, skipped: false, error: "timeout waiting for ImageCaptureCore catalog (try reconnecting the iPhone)"))
             }
             done = true
         }
@@ -188,7 +197,10 @@ final class Downloader: NSObject, ICDeviceBrowserDelegate, ICDeviceDelegate, ICC
                 collect(items: folder.contents ?? [], prefix: prefix + name + "/")
             } else if let file = item as? ICCameraFile {
                 let name = file.name ?? ""
-                catalog[prefix + name] = file
+                let fullPath = prefix + name
+                catalog[fullPath] = file
+                // filename-only index for fallback when path format differs between sessions
+                nameCatalog[name] = file
             }
         }
     }
@@ -222,8 +234,11 @@ final class Downloader: NSObject, ICDeviceBrowserDelegate, ICDeviceDelegate, ICC
             downloadNext()
             return
         }
-        guard let file = catalog[item.path], let camera = camera else {
-            results.append(ResultItem(source_rel: item.path, dest_rel: item.dest_rel, verified: false, skipped: false, error: "file not found in ImageCaptureCore catalog"))
+        // Look up by full path first; fall back to filename if path format differs
+        // between the metadata scan session and this download session.
+        let filename = (item.path as NSString).lastPathComponent
+        guard let file = catalog[item.path] ?? nameCatalog[filename], let camera = camera else {
+            results.append(ResultItem(source_rel: item.path, dest_rel: item.dest_rel, verified: false, skipped: false, error: "file not found in ImageCaptureCore catalog (path: \(item.path))"))
             logProgress("error", item: item, downloaded: 0, total: item.size)
             currentIndex += 1
             downloadNext()

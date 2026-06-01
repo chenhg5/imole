@@ -129,13 +129,20 @@ final class Deleter: NSObject, ICDeviceBrowserDelegate, ICDeviceDelegate, ICCame
 
     func run() {
         browser.start()
-        let catalogUntil = Date().addingTimeInterval(60)
+        let catalogTimeout: TimeInterval = 180
+        let catalogUntil = Date().addingTimeInterval(catalogTimeout)
+        var lastLog = Date()
         while !catalogReady && Date() < catalogUntil {
-            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.2))
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.5))
+            if Date().timeIntervalSince(lastLog) >= 15 {
+                let remaining = Int(catalogUntil.timeIntervalSinceNow)
+                fputs("catalog: waiting for iPhone to enumerate files… (\(remaining)s remaining)\n", stderr)
+                lastLog = Date()
+            }
         }
         guard catalogReady else {
             for item in selection.items {
-                results.append(ResultItem(path: item.path, deleted: false, error: "timeout: no device catalog within 60s"))
+                results.append(ResultItem(path: item.path, deleted: false, error: "timeout: device catalog not ready within 180s (try reconnecting iPhone)"))
             }
             browser.stop()
             emit()

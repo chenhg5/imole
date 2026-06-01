@@ -318,6 +318,16 @@ imole scan --duration-gt 120 --only videos --json
 
 # Photos/videos with no GPS metadata
 imole scan --no-gps --only photos --json
+
+# Filter by file extension (no --with-meta needed)
+# On iPhone: .png ≈ screenshots, .heic = camera photos, .mov = videos
+imole scan --ext png --json                             # likely screenshots
+imole scan --ext heic --only photos --json             # HEIC camera photos only
+
+# Filter by dimensions (requires --with-meta)
+# iPhone 15 Pro screenshot = 1179×2556; iPhone 14 = 1170×2532
+imole scan --with-meta --ext png --min-width 1100 --min-height 2400 --json   # precise screenshot detection
+imole scan --with-meta --min-width 4000 --only photos --json                 # high-res camera shots
 ```
 
 ### `imole backup`
@@ -345,6 +355,13 @@ imole backup --to ~/backup --duration-gt 120 --only videos
 
 # Back up items with no GPS (privacy-sensitive cleanup)
 imole backup --to ~/backup --no-gps --only photos
+
+# Back up screenshots (PNG files)
+imole backup --to ~/backup/screenshots --ext png --dry-run
+imole backup --to ~/backup/screenshots --ext png
+
+# Back up screenshots precisely: PNG + screen dimensions (auto-enables --with-meta)
+imole backup --to ~/backup/screenshots --ext png --min-width 1100 --min-height 2400
 ```
 
 Use `--file REL_PATH` when the user chooses an exact item from `imole scan --top ...` output. The value should be the item's `rel_path`, and `--file` can be repeated.
@@ -527,6 +544,39 @@ imole guide wechat
 ```
 
 iMole cannot auto-clean app sandboxes. The guide gives step-by-step instructions.
+
+### "Find and back up screenshots"
+
+iPhone screenshots are **always PNG**; camera photos are HEIC or JPEG. `--ext png` is therefore a reliable screenshot filter (high-confidence, not absolute — PNG files received via AirDrop or messaging would also match).
+
+For near-certain identification, combine with screen-dimension filters (requires `--with-meta`, cached after first run):
+
+```bash
+# Quick count — no metadata needed
+imole scan --ext png --json
+
+# Precise: PNG + screen height ≥ 2400 px (covers all modern iPhones)
+imole scan --ext png --min-width 1100 --min-height 2400 --json
+
+# Back up screenshots (fast, extension only)
+imole backup --to ~/iphone-backup/screenshots --ext png --dry-run
+imole backup --to ~/iphone-backup/screenshots --ext png
+
+# Back up screenshots (precise, with dimensions)
+imole backup --to ~/iphone-backup/screenshots \
+  --ext png --min-width 1100 --min-height 2400 --dry-run
+imole backup --to ~/iphone-backup/screenshots \
+  --ext png --min-width 1100 --min-height 2400
+```
+
+Common iPhone screen resolutions for reference:
+
+| Model | Resolution |
+|---|---|
+| iPhone 16 Pro | 1206 × 2622 |
+| iPhone 15 Pro | 1179 × 2556 |
+| iPhone 14 / 15 | 1170 × 2532 |
+| iPhone SE (3rd) | 750 × 1334 |
 
 ### "Back up photos from a specific country / trip"
 

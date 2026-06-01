@@ -26,12 +26,20 @@ type Filter struct {
 	Files     []string
 	Now       time.Time
 
+	// Extension filter (case-insensitive, without leading dot, e.g. "png").
+	Ext string
+
 	// Metadata filters — only effective when item metadata has been fetched.
 	Country     string    // filter by country name / code / region (partial match)
 	NoGPS       bool      // keep only items WITHOUT GPS data
 	TakenAfter  time.Time // keep items taken at or after this time
 	TakenBefore time.Time // keep items taken before this time
 	DurationGt  float64   // keep videos with duration > N seconds
+	// Dimension filters (require --with-meta).
+	MinWidth  int
+	MinHeight int
+	MaxWidth  int
+	MaxHeight int
 }
 
 func Default() Filter {
@@ -40,7 +48,8 @@ func Default() Filter {
 
 // NeedsMetadata returns true if any metadata-dependent filter is set.
 func (f Filter) NeedsMetadata() bool {
-	return f.Country != "" || f.NoGPS || !f.TakenAfter.IsZero() || !f.TakenBefore.IsZero() || f.DurationGt > 0
+	return f.Country != "" || f.NoGPS || !f.TakenAfter.IsZero() || !f.TakenBefore.IsZero() || f.DurationGt > 0 ||
+		f.MinWidth > 0 || f.MinHeight > 0 || f.MaxWidth > 0 || f.MaxHeight > 0
 }
 
 func (f Filter) Match(item media.Item) bool {
@@ -52,6 +61,14 @@ func (f Filter) Match(item media.Item) bool {
 	}
 	if f.Only == KindVideos && !item.IsVideo() {
 		return false
+	}
+	// Extension filter: compare without leading dot, case-insensitive.
+	if f.Ext != "" {
+		itemExt := strings.TrimPrefix(strings.ToLower(item.Ext), ".")
+		filterExt := strings.TrimPrefix(strings.ToLower(f.Ext), ".")
+		if itemExt != filterExt {
+			return false
+		}
 	}
 	if f.OlderThan > 0 && f.Now.Sub(item.ModTime) < f.OlderThan {
 		return false
@@ -84,6 +101,21 @@ func (f Filter) Match(item media.Item) bool {
 	if f.DurationGt > 0 && item.DurationSec <= f.DurationGt {
 		return false
 	}
+	// Dimension filters (only applied when dimensions are populated via --with-meta).
+	if item.Width > 0 || item.Height > 0 {
+		if f.MinWidth > 0 && item.Width < f.MinWidth {
+			return false
+		}
+		if f.MinHeight > 0 && item.Height < f.MinHeight {
+			return false
+		}
+		if f.MaxWidth > 0 && item.Width > f.MaxWidth {
+			return false
+		}
+		if f.MaxHeight > 0 && item.Height > f.MaxHeight {
+			return false
+		}
+	}
 	return true
 }
 
@@ -110,7 +142,7 @@ func ParseKind(s string) (Kind, error) {
 	case KindAll, KindPhotos, KindVideos:
 		return Kind(strings.ToLower(s)), nil
 	default:
-		return "", fmt.Errorf("invalid --only value %q", s)
+		return "", fmt.Errorf("invalid --only value %q: must be all, photos, or videos", s)
 	}
 }
 

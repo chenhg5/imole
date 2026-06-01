@@ -27,7 +27,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		}
 	}
 
-	var providerName, source, to, only, olderThan, largeThan, fields, layout string
+	var providerName, source, to, only, olderThan, largeThan, fields, layout, ext string
 	var dryRun, jsonMode, yes, withMeta bool
 	var limit int
 	var files stringList
@@ -42,7 +42,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	fs.BoolVar(&yes, "yes", false, "skip interactive confirmation prompt")
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
-	addFilterFlags(fs, &only, &olderThan, &largeThan)
+	addFilterFlags(fs, &only, &olderThan, &largeThan, &ext)
 	addMetaFilterFlags(fs, &mf)
 	fs.BoolVar(&withMeta, "with-meta", false, "fetch EXIF metadata to enable GPS/date/country filtering")
 	if err := parseFlags(fs, args); err != nil {
@@ -54,10 +54,11 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		return ExitUsage
 	}
 	// Auto-enable --with-meta if any metadata filter is specified.
-	if mf.country != "" || mf.noGPS || mf.takenAfter != "" || mf.takenBefore != "" || mf.durationGt > 0 {
+	if mf.country != "" || mf.noGPS || mf.takenAfter != "" || mf.takenBefore != "" || mf.durationGt > 0 ||
+		mf.minWidth > 0 || mf.minHeight > 0 || mf.maxWidth > 0 || mf.maxHeight > 0 {
 		withMeta = true
 	}
-	f, err := parseFilterMeta(only, olderThan, largeThan, files, mf)
+	f, err := parseFilterMeta(only, olderThan, largeThan, ext, files, mf)
 	if err != nil {
 		a.printError(&Error{
 			Code:       "usage_error",
@@ -122,6 +123,16 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	a.status(fmt.Sprintf("Backing up %d files to %s…", selectedCount, to))
 	var manifest backup.Manifest
 
+	// When --limit was applied, replace result.Items with the already-filtered+limited
+	// slice so the backup functions only see the capped set. Use an empty filter to avoid
+	// double-filtering (selectedItems were already filtered above).
+	backupResult := result
+	backupFilter := f
+	if limit > 0 {
+		backupResult.Items = selectedItems
+		backupFilter = filter.Filter{} // no further filtering needed
+	}
+
 	// Detect rclone destination: --to rclone:remote:path
 	localDest := to
 	rcloneDest := ""
@@ -132,9 +143,9 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	}
 
 	if source == "" && (providerName == string(provider.ImageCapture) || providerName == string(provider.Auto)) {
-		manifest, err = a.runProviderBackup(ctx, result, localDest, f, layout, provider.Name(providerName), dryRun)
+		manifest, err = a.runProviderBackup(ctx, backupResult, localDest, backupFilter, layout, provider.Name(providerName), dryRun)
 	} else {
-		manifest, err = backup.Run(ctx, result, backup.Options{Destination: localDest, Filter: f, Layout: layout, DryRun: dryRun})
+		manifest, err = backup.Run(ctx, backupResult, backup.Options{Destination: localDest, Filter: backupFilter, Layout: layout, DryRun: dryRun})
 	}
 	if err != nil {
 		a.printError(runtimeError("backup_failed", err.Error(), "", false))

@@ -55,13 +55,13 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 		}
 	}
 
-	var providerName, source, only, largeThan, oldAgeRaw, fields string
+	var providerName, source, only, largeThan, oldAgeRaw, fields, ext string
 	var top, limit int
 	var jsonMode, summary, useCache, withMeta bool
 	var mf metaFlags
 	fs := flagSet("scan")
 	addProviderFlags(fs, &providerName, &source)
-	addFilterFlags(fs, &only, &oldAgeRaw, &largeThan)
+	addFilterFlags(fs, &only, &oldAgeRaw, &largeThan, &ext)
 	addMetaFilterFlags(fs, &mf)
 	fs.BoolVar(&withMeta, "with-meta", false, "fetch EXIF metadata (GPS, date, dimensions) — slower first time, cached 7 days")
 	fs.IntVar(&top, "top", 0, "show top N largest files sorted by size; use with --only videos|photos|all")
@@ -85,11 +85,12 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	}
 
 	// Auto-enable --with-meta if any metadata filter is specified.
-	if mf.country != "" || mf.noGPS || mf.takenAfter != "" || mf.takenBefore != "" || mf.durationGt > 0 {
+	if mf.country != "" || mf.noGPS || mf.takenAfter != "" || mf.takenBefore != "" || mf.durationGt > 0 ||
+		mf.minWidth > 0 || mf.minHeight > 0 || mf.maxWidth > 0 || mf.maxHeight > 0 {
 		withMeta = true
 	}
 
-	f, err := parseFilterMeta(only, oldAgeRaw, largeThan, nil, mf)
+	f, err := parseFilterMeta(only, oldAgeRaw, largeThan, ext, nil, mf)
 	if err != nil {
 		a.printError(&Error{
 			Code:       "usage_error",
@@ -179,7 +180,7 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 			items := media.TopItems(filtered, only, top)
 			return a.outputJSON(items, fields)
 		}
-		if hasMetaFilter || f.Only != "all" || f.OlderThan > 0 || f.LargeThan > 0 || len(f.Files) > 0 {
+		if hasMetaFilter || f.Only != "all" || f.OlderThan > 0 || f.LargeThan > 0 || len(f.Files) > 0 || f.Ext != "" || limit > 0 {
 			// Return filtered items + mini summary when filters are active.
 			type filteredResult struct {
 				FilteredCount int          `json:"filtered_count"`

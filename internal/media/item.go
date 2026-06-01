@@ -52,8 +52,9 @@ func NewItem(root, path string, size int64, modTime time.Time) Item {
 	}
 }
 
-func (i Item) IsVideo() bool { return i.Kind == "video" }
-func (i Item) IsPhoto() bool { return i.Kind == "photo" }
+func (i Item) IsVideo() bool      { return i.Kind == "video" }
+func (i Item) IsPhoto() bool      { return i.Kind == "photo" }
+func (i Item) IsScreenshot() bool { return i.Ext == ".png" }
 
 func kindForExt(ext string) string {
 	switch ext {
