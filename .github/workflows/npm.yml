@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+# NOTE: npm publish is done locally via .local/publish.sh
+# Run: .local/publish.sh
+
 permissions:
   contents: read
   packages: write
@@ -16,19 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-          scope: getimole
-
-      - name: Set NPM token
+      - name: Informational note
         run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
-
-      - name: Publish to npm
-        run: |
-          cd npm
-          npm version ${GITHUB_REF#refs/tags/v} --no-git-tag-version
-          npm publish --access public
+          echo "npm publish is handled locally via .local/publish.sh"
+          echo "On your machine run: .local/publish.sh"
