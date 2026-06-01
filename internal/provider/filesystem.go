@@ -4,9 +4,10 @@ import (
 	"context"
 	"os"
 
+	"github.com/rwcarlsen/goexif/exif"
+
 	"github.com/chenhg5/imole/internal/geo"
 	"github.com/chenhg5/imole/internal/media"
-	"github.com/rwcarlsen/goexif/exif"
 )
 
 func ScanFilesystem(ctx context.Context, source string, opts media.Options) (media.Result, error) {
