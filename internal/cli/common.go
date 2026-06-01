@@ -42,10 +42,6 @@ type metaFlags struct {
 	maxHeight   int
 }
 
-func parseFilter(only, olderThan, largeThan, ext string, files []string) (filter.Filter, error) {
-	return parseFilterMeta(only, olderThan, largeThan, ext, files, metaFlags{})
-}
-
 func parseFilterMeta(only, olderThan, largeThan, ext string, files []string, meta metaFlags) (filter.Filter, error) {
 	f := filter.Default()
 	kind, err := filter.ParseKind(only)
