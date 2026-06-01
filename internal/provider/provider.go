@@ -26,6 +26,7 @@ type Options struct {
 	Source         string
 	LargeThreshold int64
 	OldAge         time.Duration
+	WithMeta       bool // fetch EXIF metadata (GPS, date, dimensions)
 }
 
 func Scan(ctx context.Context, opts Options) (media.Result, error) {
@@ -33,17 +34,24 @@ func Scan(ctx context.Context, opts Options) (media.Result, error) {
 	if opts.OldAge > 0 {
 		oldBefore = time.Now().Add(-opts.OldAge).Unix()
 	}
-	scanOpts := media.Options{LargeThreshold: opts.LargeThreshold, OldBeforeUnix: oldBefore}
+	scanOpts := media.Options{LargeThreshold: opts.LargeThreshold, OldBeforeUnix: oldBefore, WithMeta: opts.WithMeta}
 
 	if opts.Source != "" {
 		return ScanFilesystem(ctx, opts.Source, scanOpts)
+	}
+
+	scanIC := func(ctx context.Context, scanOpts media.Options) (media.Result, error) {
+		if scanOpts.WithMeta {
+			return ScanImageCaptureWithMeta(ctx, scanOpts)
+		}
+		return ScanImageCapture(ctx, scanOpts)
 	}
 
 	switch opts.Name {
 	case "", Auto:
 		if runtime.GOOS == "darwin" {
 			var failures []string
-			if result, err := ScanImageCapture(ctx, scanOpts); err == nil {
+			if result, err := scanIC(ctx, scanOpts); err == nil {
 				return result, nil
 			} else {
 				failures = append(failures, "imagecapture: "+err.Error())
@@ -81,7 +89,7 @@ func Scan(ctx context.Context, opts Options) (media.Result, error) {
 	case GPhoto:
 		return ScanGPhoto(ctx, scanOpts)
 	case ImageCapture:
-		return ScanImageCapture(ctx, scanOpts)
+		return scanIC(ctx, scanOpts)
 	default:
 		return media.Result{}, fmt.Errorf("unknown provider %q", opts.Name)
 	}

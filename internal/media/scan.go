@@ -36,6 +36,7 @@ type Result struct {
 type Options struct {
 	LargeThreshold int64
 	OldBeforeUnix  int64
+	WithMeta       bool // fetch EXIF metadata (GPS, date, dimensions)
 }
 
 func Scan(ctx context.Context, root string, opts Options) (Result, error) {

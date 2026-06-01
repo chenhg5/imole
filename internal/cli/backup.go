@@ -28,8 +28,9 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	}
 
 	var providerName, source, to, only, olderThan, largeThan, fields, layout string
-	var dryRun, jsonMode, yes bool
+	var dryRun, jsonMode, yes, withMeta bool
 	var files stringList
+	var mf metaFlags
 	fs := flagSet("backup")
 	addProviderFlags(fs, &providerName, &source)
 	fs.StringVar(&to, "to", "", "backup destination (local path or rclone:remote:path)")
@@ -40,6 +41,8 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	fs.BoolVar(&jsonMode, "json", false, "output JSON")
 	fs.StringVar(&fields, "fields", "", "comma-separated dot-paths to include in JSON output")
 	addFilterFlags(fs, &only, &olderThan, &largeThan)
+	addMetaFilterFlags(fs, &mf)
+	fs.BoolVar(&withMeta, "with-meta", false, "fetch EXIF metadata to enable GPS/date/country filtering")
 	if err := parseFlags(fs, args); err != nil {
 		a.printError(usageError(err.Error()))
 		return ExitUsage
@@ -48,7 +51,11 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		a.printError(usageError("backup requires --to PATH"))
 		return ExitUsage
 	}
-	f, err := parseFilter(only, olderThan, largeThan, files)
+	// Auto-enable --with-meta if any metadata filter is specified.
+	if mf.country != "" || mf.noGPS || mf.takenAfter != "" || mf.takenBefore != "" || mf.durationGt > 0 {
+		withMeta = true
+	}
+	f, err := parseFilterMeta(only, olderThan, largeThan, files, mf)
 	if err != nil {
 		a.printError(&Error{
 			Code:       "usage_error",
@@ -59,8 +66,12 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		return ExitUsage
 	}
 	largeThreshold := f.LargeThan
-	stopSpinner := a.startSpinner("Scanning device…")
-	result, err := scanFromFlags(ctx, providerName, source, largeThreshold, f.OlderThan)
+	spinMsg := "Scanning device…"
+	if withMeta {
+		spinMsg = "Scanning device with metadata (GPS, date, dimensions)…"
+	}
+	stopSpinner := a.startSpinner(spinMsg)
+	result, err := scanFromFlags(ctx, providerName, source, largeThreshold, f.OlderThan, withMeta)
 	if err != nil {
 		stopSpinner("")
 		a.printError(runtimeError("scan_failed", err.Error(), "", true))

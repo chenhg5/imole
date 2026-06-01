@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chenhg5/imole/internal/geo"
 	"github.com/chenhg5/imole/internal/media"
 )
 
@@ -24,10 +25,22 @@ type Filter struct {
 	LargeThan int64
 	Files     []string
 	Now       time.Time
+
+	// Metadata filters — only effective when item metadata has been fetched.
+	Country     string    // filter by country name / code / region (partial match)
+	NoGPS       bool      // keep only items WITHOUT GPS data
+	TakenAfter  time.Time // keep items taken at or after this time
+	TakenBefore time.Time // keep items taken before this time
+	DurationGt  float64   // keep videos with duration > N seconds
 }
 
 func Default() Filter {
 	return Filter{Only: KindAll, Now: time.Now()}
+}
+
+// NeedsMetadata returns true if any metadata-dependent filter is set.
+func (f Filter) NeedsMetadata() bool {
+	return f.Country != "" || f.NoGPS || !f.TakenAfter.IsZero() || !f.TakenBefore.IsZero() || f.DurationGt > 0
 }
 
 func (f Filter) Match(item media.Item) bool {
@@ -44,6 +57,31 @@ func (f Filter) Match(item media.Item) bool {
 		return false
 	}
 	if f.LargeThan > 0 && item.Size < f.LargeThan {
+		return false
+	}
+
+	// Metadata filters.
+	if f.NoGPS && item.HasGPS {
+		return false
+	}
+	if f.Country != "" {
+		loc := geo.Location{
+			Country:     item.Country,
+			CountryCode: item.CountryCode,
+			Continent:   item.Continent,
+			Region:      item.Region,
+		}
+		if !geo.MatchCountry(loc, f.Country) {
+			return false
+		}
+	}
+	if !f.TakenAfter.IsZero() && !item.TakenAt.IsZero() && item.TakenAt.Before(f.TakenAfter) {
+		return false
+	}
+	if !f.TakenBefore.IsZero() && !item.TakenAt.IsZero() && !item.TakenAt.Before(f.TakenBefore) {
+		return false
+	}
+	if f.DurationGt > 0 && item.DurationSec <= f.DurationGt {
 		return false
 	}
 	return true

@@ -29,7 +29,20 @@ func (s *stringList) Set(value string) error {
 	return nil
 }
 
+// metaFlags holds metadata-based filter flag values.
+type metaFlags struct {
+	country     string
+	noGPS       bool
+	takenAfter  string
+	takenBefore string
+	durationGt  float64
+}
+
 func parseFilter(only, olderThan, largeThan string, files []string) (filter.Filter, error) {
+	return parseFilterMeta(only, olderThan, largeThan, files, metaFlags{})
+}
+
+func parseFilterMeta(only, olderThan, largeThan string, files []string, meta metaFlags) (filter.Filter, error) {
 	f := filter.Default()
 	kind, err := filter.ParseKind(only)
 	if err != nil {
@@ -51,7 +64,36 @@ func parseFilter(only, olderThan, largeThan string, files []string) (filter.Filt
 		}
 		f.LargeThan = size
 	}
+
+	// Metadata filters.
+	f.Country = strings.TrimSpace(meta.country)
+	f.NoGPS = meta.noGPS
+	f.DurationGt = meta.durationGt
+	if meta.takenAfter != "" {
+		t, err := parseDate(meta.takenAfter)
+		if err != nil {
+			return f, fmt.Errorf("--taken-after: %w", err)
+		}
+		f.TakenAfter = t
+	}
+	if meta.takenBefore != "" {
+		t, err := parseDate(meta.takenBefore)
+		if err != nil {
+			return f, fmt.Errorf("--taken-before: %w", err)
+		}
+		f.TakenBefore = t
+	}
 	return f, nil
+}
+
+// parseDate accepts YYYY-MM-DD or YYYY/MM/DD.
+func parseDate(s string) (time.Time, error) {
+	for _, layout := range []string{"2006-01-02", "2006/01/02"} {
+		if t, err := time.ParseInLocation(layout, strings.TrimSpace(s), time.Local); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("invalid date %q, use YYYY-MM-DD", s)
 }
 
 func normalizedFiles(files []string) []string {
@@ -74,12 +116,13 @@ func normalizedFiles(files []string) []string {
 	return out
 }
 
-func scanFromFlags(ctx context.Context, providerName, source string, largeThreshold int64, oldAge time.Duration) (media.Result, error) {
+func scanFromFlags(ctx context.Context, providerName, source string, largeThreshold int64, oldAge time.Duration, withMeta bool) (media.Result, error) {
 	return provider.Scan(ctx, provider.Options{
 		Name:           provider.Name(providerName),
 		Source:         source,
 		LargeThreshold: largeThreshold,
 		OldAge:         oldAge,
+		WithMeta:       withMeta,
 	})
 }
 
@@ -87,6 +130,14 @@ func addFilterFlags(fs *flag.FlagSet, only, olderThan, largeThan *string) {
 	fs.StringVar(only, "only", "all", "media filter: all, photos, videos")
 	fs.StringVar(olderThan, "older-than", "", "include media older than an age, e.g. 90d, 6m, 1y")
 	fs.StringVar(largeThan, "large-than", "", "include media larger than a size, e.g. 500MB, 1GB")
+}
+
+func addMetaFilterFlags(fs *flag.FlagSet, m *metaFlags) {
+	fs.StringVar(&m.country, "country", "", "keep items whose GPS resolves to this country/region (requires --with-meta)")
+	fs.BoolVar(&m.noGPS, "no-gps", false, "keep items without GPS data (requires --with-meta)")
+	fs.StringVar(&m.takenAfter, "taken-after", "", "keep items taken on or after date, e.g. 2023-01-01 (requires --with-meta)")
+	fs.StringVar(&m.takenBefore, "taken-before", "", "keep items taken before date, e.g. 2024-01-01 (requires --with-meta)")
+	fs.Float64Var(&m.durationGt, "duration-gt", 0, "keep videos longer than N seconds (requires --with-meta)")
 }
 
 func addProviderFlags(fs *flag.FlagSet, providerName, source *string) {

@@ -13,3 +13,8 @@ func ScanImageCapture(ctx context.Context, opts media.Options) (media.Result, er
 	_, _ = ctx, opts
 	return media.Result{}, fmt.Errorf("ImageCaptureCore provider is macOS-only")
 }
+
+func ScanImageCaptureWithMeta(ctx context.Context, opts media.Options) (media.Result, error) {
+	_, _ = ctx, opts
+	return media.Result{}, fmt.Errorf("ImageCaptureCore provider is macOS-only")
+}

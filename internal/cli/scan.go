@@ -56,10 +56,13 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 
 	var providerName, source, only, largeThan, oldAgeRaw, fields string
 	var top int
-	var jsonMode, summary, useCache bool
+	var jsonMode, summary, useCache, withMeta bool
+	var mf metaFlags
 	fs := flagSet("scan")
 	addProviderFlags(fs, &providerName, &source)
 	addFilterFlags(fs, &only, &oldAgeRaw, &largeThan)
+	addMetaFilterFlags(fs, &mf)
+	fs.BoolVar(&withMeta, "with-meta", false, "fetch EXIF metadata (GPS, date, dimensions) — slower first time, cached 7 days")
 	fs.IntVar(&top, "top", 0, "show top N largest files sorted by size; use with --only videos|photos|all")
 	fs.BoolVar(&summary, "summary", false, "show compact stats table only")
 	fs.BoolVar(&useCache, "cache", false, "use cached scan result if available and less than 1 hour old")
@@ -78,25 +81,31 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 		a.printError(usageError(err.Error()))
 		return ExitUsage
 	}
-	f, err := parseFilter(only, oldAgeRaw, largeThan, nil)
+
+	// Auto-enable --with-meta if any metadata filter is specified.
+	if mf.country != "" || mf.noGPS || mf.takenAfter != "" || mf.takenBefore != "" || mf.durationGt > 0 {
+		withMeta = true
+	}
+
+	f, err := parseFilterMeta(only, oldAgeRaw, largeThan, nil, mf)
 	if err != nil {
 		a.printError(&Error{
 			Code:       "usage_error",
 			Message:    err.Error(),
-			Suggestion: "Use --only photos|videos, --older-than 90d|6m|1y, --large-than 500MB|1GB",
+			Suggestion: "Use --only photos|videos, --older-than 90d|6m|1y, --large-than 500MB|1GB, --country CN, --taken-after 2023-01-01",
 			Retryable:  false,
 		})
 		return ExitUsage
 	}
 
-	if summary && source == "" && providerName == "auto" && only == "all" && largeThan == "" && oldAgeRaw == "" && top == 0 {
+	if summary && source == "" && providerName == "auto" && only == "all" && largeThan == "" && oldAgeRaw == "" && top == 0 && !withMeta {
 		return a.runScanSummaryAll(ctx, jsonMode, fields)
 	}
 
 	var result media.Result
 	var fromCache bool
 
-	if useCache {
+	if useCache && !withMeta {
 		if entry, ok := scancache.Read(providerName, source, scancache.DefaultTTL); ok {
 			result = entry.Result
 			fromCache = true
@@ -107,8 +116,12 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	}
 
 	if !fromCache {
-		stopSpinner := a.startSpinner("Scanning device… (may take ~15 s for USB)")
-		result, err = scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan)
+		spinMsg := "Scanning device… (may take ~15 s for USB)"
+		if withMeta {
+			spinMsg = "Scanning device with metadata (GPS, date, dimensions)… first run may take up to 60 s, then cached 7 days"
+		}
+		stopSpinner := a.startSpinner(spinMsg)
+		result, err = scanFromFlags(ctx, providerName, source, f.LargeThan, f.OlderThan, withMeta)
 		if err != nil {
 			stopSpinner("")
 			// Before reporting failure, check whether a recent cache can save the day.
@@ -132,9 +145,23 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 			if root == "" {
 				root = "device"
 			}
-			stopSpinner(fmt.Sprintf("Device ready: %s  (%d files · %s)", root, result.Summary.TotalFiles, human.Bytes(result.Summary.TotalSize)))
+			extraInfo := ""
+			if withMeta {
+				gpsCount := 0
+				for _, it := range result.Items {
+					if it.HasGPS {
+						gpsCount++
+					}
+				}
+				if gpsCount > 0 {
+					extraInfo = fmt.Sprintf(" · %d with GPS", gpsCount)
+				}
+			}
+			stopSpinner(fmt.Sprintf("Device ready: %s  (%d files · %s%s)", root, result.Summary.TotalFiles, human.Bytes(result.Summary.TotalSize), extraInfo))
 			a.debug("Scan complete: %d items from %s", len(result.Items), root)
-			_ = scancache.Write(providerName, source, result)
+			if !withMeta {
+				_ = scancache.Write(providerName, source, result)
+			}
 		}
 	}
 
@@ -179,7 +206,7 @@ func (a *App) runScanSummaryAll(ctx context.Context, jsonMode bool, fields strin
 	deviceInfo := device.Check(ctx).Device
 
 	stopSpinner := a.startSpinner("Scanning media…")
-	mediaResult, mediaErr := scanFromFlags(ctx, "auto", "", 0, 0)
+	mediaResult, mediaErr := scanFromFlags(ctx, "auto", "", 0, 0, false)
 	if mediaErr != nil {
 		stopSpinner("")
 		if fallback, ok := scancache.Read("auto", "", 24*time.Hour); ok {

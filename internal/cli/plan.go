@@ -33,7 +33,7 @@ func (a *App) runPlan(ctx context.Context, args []string) int {
 
 	// Scan device
 	stopSpinner := a.startSpinner("Scanning device to build cleanup plans…")
-	result, err := scanFromFlags(ctx, providerName, source, 0, 0)
+	result, err := scanFromFlags(ctx, providerName, source, 0, 0, false)
 	if err != nil {
 		stopSpinner("")
 		a.printError(runtimeError("scan_failed", err.Error(), scanHint(providerName, source), true))

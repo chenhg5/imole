@@ -33,6 +33,14 @@ func (a *App) renderScanHelp() string {
 		flag("--source PATH", "Scan local mount instead of USB device") +
 		flag("--cache", "Use cached scan result (< 1 h old)") +
 		"\n" +
+		header("Metadata flags  (auto-enables --with-meta if any of these are set)") +
+		flag("--with-meta", "Fetch EXIF metadata: GPS, date, dimensions. First run ~30-60 s, cached 7 days") +
+		flag("--country NAME", "Keep items whose GPS resolves to country, e.g. China, US") +
+		flag("--no-gps", "Keep items with no GPS coordinates") +
+		flag("--taken-after DATE", "Keep items taken on or after YYYY-MM-DD") +
+		flag("--taken-before DATE", "Keep items taken before YYYY-MM-DD") +
+		flag("--duration-gt N", "Keep videos longer than N seconds") +
+		"\n" +
 		header("Output flags") +
 		flag("--json", "Force JSON output") +
 		flag("--fields a,b.c", "Select specific JSON fields (dot-path)") +
@@ -42,6 +50,8 @@ func (a *App) renderScanHelp() string {
 		a.dim("Examples:\n") +
 		a.dim("  imole scan --summary\n") +
 		a.dim("  imole scan --top 20 --only videos\n") +
+		a.dim("  imole scan --with-meta --country Japan --json\n") +
+		a.dim("  imole scan --with-meta --taken-after 2023-01-01 --only photos\n") +
 		a.dim("  imole scan apps --top 20\n") +
 		a.dim("  imole scan --cache --summary --json\n") +
 		"\n"
@@ -71,9 +81,19 @@ func (a *App) renderBackupHelp() string {
 		flag("--json", "Force JSON output") +
 		flag("--fields a,b.c", "Select specific JSON fields (dot-path)") +
 		"\n" +
+		header("Metadata filters  (auto-enables --with-meta)") +
+		flag("--with-meta", "Fetch EXIF metadata to enable GPS/date/country filtering") +
+		flag("--country NAME", "Back up items from a specific country, e.g. Japan, CN") +
+		flag("--no-gps", "Back up items with no GPS coordinates only") +
+		flag("--taken-after DATE", "Back up items taken on or after YYYY-MM-DD") +
+		flag("--taken-before DATE", "Back up items taken before YYYY-MM-DD") +
+		flag("--duration-gt N", "Back up videos longer than N seconds") +
+		"\n" +
 		a.dim("Examples:\n") +
 		a.dim("  imole backup --to ~/iphone-backup --only videos --older-than 90d\n") +
 		a.dim("  imole backup --to ~/backup --only videos --dry-run\n") +
+		a.dim("  imole backup --to ~/backup --country Japan --dry-run\n") +
+		a.dim("  imole backup --to ~/backup --taken-after 2023-01-01 --taken-before 2024-01-01\n") +
 		a.dim("  imole backup --to ~/backup --file DCIM/202507__/IMG_7523.MOV\n") +
 		"\n"
 }
@@ -186,6 +206,14 @@ func (a *App) renderCommands() string {
 		flag("backup --file REL_PATH", "Back up one file from scan output; repeatable") +
 		flag("clean --file REL_PATH", "Delete one verified file from manifest; repeatable") +
 		"\n" +
+		header("Metadata filters  (scan and backup; auto-enables --with-meta)") +
+		flag("--with-meta", "Fetch EXIF: GPS location, date, dimensions. Slow first run (~30-60 s), cached 7 days") +
+		flag("--country NAME", "Keep items whose GPS resolves to country/region, e.g. --country China") +
+		flag("--no-gps", "Keep items that have NO GPS coordinates") +
+		flag("--taken-after 2023-01-01", "Keep items taken on or after date") +
+		flag("--taken-before 2024-01-01", "Keep items taken before date") +
+		flag("--duration-gt N", "Keep videos longer than N seconds") +
+		"\n" +
 		header("Output flags") +
 		flag("--json", "Force JSON output") +
 		flag("--fields a,b.c", "Select specific JSON fields (dot-path)") +
@@ -229,6 +257,12 @@ func (a *App) renderExamples() string {
 			"scan --summary --json --fields device.storage.free_percent,media.video_size,apps.total_size") +
 		ex("Use cached scan to skip 15 s USB wait",
 			"scan --cache --top 30 --only videos") +
+		ex("Find photos taken in Japan (fetches GPS metadata, cached 7 d)",
+			"scan --with-meta --country Japan --only photos") +
+		ex("Back up photos taken in 2023 only",
+			"backup --to ~/iphone-backup --taken-after 2023-01-01 --taken-before 2024-01-01") +
+		ex("Back up only photos without GPS data",
+			"backup --to ~/backup-no-gps --no-gps --only photos") +
 		"\n" +
 		a.dim("  Exit codes: 0 success · 1 error · 2 bad args · 10 dry-run OK\n") +
 		"\n"
