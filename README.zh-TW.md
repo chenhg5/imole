@@ -23,23 +23,19 @@
 **把這些丟給 LLM → 它自動完成所有操作：**
 
 ```
-Back up all photos and videos older than 6 months from my iPhone to ~/backup,
-then delete the originals to free up space
+幫我把手機裡超過6個月的照片和影片備份到 ~/backup，然後刪除原始檔案釋放空間
 ```
 
 ```
-Scan my iPhone storage and tell me which apps are taking up the most space,
-then suggest what I can safely remove
+掃描一下我的iPhone儲存空間，看看哪些app最佔空間，給我清理建議
 ```
 
 ```
-I just got back from Japan — back up all my photos and videos and delete
-the originals from my iPhone
+我剛從日本回來，幫我備份所有照片和影片，然後刪除原始檔案
 ```
 
 ```
-Free up 50GB from my iPhone by backing up old videos and photos, then
-deleting the verified backups
+幫我從iPhone騰出50GB空間，備份舊影片和照片，然後刪除已驗證的備份
 ```
 
 **安裝**

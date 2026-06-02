@@ -16,6 +16,10 @@
   <a href="https://t.me/+ZpgBu1dlmCszODBl"><img src="https://img.shields.io/badge/chat-Telegram-blue?style=flat-square&logo=Telegram" alt="Telegram"></a>
 </p>
 
+<p align="center">
+  <a href="./README.md">English</a> | <a href="./README.zh-CN.md">中文</a> | <a href="./README.ja-JP.md">日本語</a> | <a href="./README.es-ES.md">Español</a> | <a href="./README.zh-TW.md">繁體中文</a>
+</p>
+
 > **不买更多 iCloud 也能释放 iPhone 空间。** iMole 扫描 iPhone 存储占用情况，将照片和视频备份到电脑，验证每个文件，然后安全删除原文件 — 一条命令搞定。
 
 ## 快速上手
@@ -23,23 +27,19 @@
 **把这些扔给 LLM → 它自动完成所有操作：**
 
 ```
-Back up all photos and videos older than 6 months from my iPhone to ~/backup,
-then delete the originals to free up space
+帮我把手机里超过6个月的照片和视频备份到 ~/backup，然后删除原始文件释放空间
 ```
 
 ```
-Scan my iPhone storage and tell me which apps are taking up the most space,
-then suggest what I can safely remove
+扫描一下我的iPhone存储空间，看看哪些app最占空间，给我清理建议
 ```
 
 ```
-I just got back from Japan — back up all my photos and videos and delete
-the originals from my iPhone
+我刚从日本回来，帮我备份所有照片和视频，然后删除原始文件
 ```
 
 ```
-Free up 50GB from my iPhone by backing up old videos and photos, then
-deleting the verified backups
+帮我从iPhone腾出50GB空间，备份旧视频和照片，然后删除已验证的备份
 ```
 
 **安装**
@@ -77,6 +77,8 @@ imole clean  --manifest ~/iphone-backup/manifest.json  # 从 iPhone 删除
 - **空间诊断** — 通过 USB 扫描 DCIM，按大小排序，按时间或类型筛选
 - **应用存储排行** — 用 `imole scan apps` 查看 iOS 报告的 App/数据使用量
 - **智能备份** — 复制到任意本地路径，按年月整理，验证文件大小
+- **增量备份** — 重复备份到同一目录时自动跳过已验证文件，无需重复下载
+- **云存储备份** — `--to rclone:<远端>:<路径>` 可同步到 Google Drive、S3、OneDrive、Dropbox 等 70+ 个云盘
 - **清单文件** — 每次备份都会生成 `manifest.json`，记录源路径、大小和验证状态
 - **安全删除** — `imole clean` 只删除 manifest 中 `verified: true` 的文件
 - **跨平台** — macOS (ImageCaptureCore 原生 USB)、Linux (gphoto2 / ifuse)、Windows (`--source PATH`)
@@ -284,6 +286,21 @@ Final step to reclaim space:
   On iPhone → Photos → Albums → Recently Deleted → Delete All
   Estimated space freed after that step: ~62.4 GB
 ```
+
+### 备份到云存储（rclone）
+
+```bash
+# 安装并配置 rclone：https://rclone.org/install/
+rclone config   # 添加远端，例如 "gdrive"（Google Drive）或 "s3"（AWS S3）
+
+# 使用 --to rclone:<远端名>:<远端路径>
+imole backup --to rclone:gdrive:iPhone/backup --only videos --older-than 90d
+imole backup --to rclone:s3:my-bucket/iphone --only photos
+imole backup --to rclone:onedrive:iPhone --dry-run
+```
+
+imole 先将文件备份到本地 staging 目录（`~/.imole/rclone-cache/`），验证后调用 `rclone copy` 推送到云端。
+支持 Google Drive、S3、OneDrive、Dropbox、Backblaze B2、SFTP 等 70+ 种云存储。
 
 ### 查看 iMole 操作历史
 

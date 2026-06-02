@@ -16,6 +16,10 @@
   <a href="https://t.me/+ZpgBu1dlmCszODBl"><img src="https://img.shields.io/badge/chat-Telegram-blue?style=flat-square&logo=Telegram" alt="Telegram"></a>
 </p>
 
+<p align="center">
+  <a href="./README.md">English</a> | <a href="./README.zh-CN.md">中文</a> | <a href="./README.ja-JP.md">日本語</a> | <a href="./README.es-ES.md">Español</a> | <a href="./README.zh-TW.md">繁體中文</a>
+</p>
+
 > **Libera espacio en tu iPhone sin comprar más iCloud.** iMole escanea el almacenamiento de tu iPhone, hace backup de fotos y videos a tu computadora, verifica cada archivo y luego elimina los originales de forma segura — todo con un solo comando.
 
 ## Inicio Rápido
@@ -23,23 +27,23 @@
 **Dale esto a un LLM → hace todo automáticamente:**
 
 ```
-Back up all photos and videos older than 6 months from my iPhone to ~/backup,
-then delete the originals to free up space
+Haz backup de todas las fotos y videos de más de 6 meses de mi iPhone a ~/backup,
+luego elimina los originales para liberar espacio
 ```
 
 ```
-Scan my iPhone storage and tell me which apps are taking up the most space,
-then suggest what I can safely remove
+Escanea el almacenamiento de mi iPhone y dime qué apps están ocupando más espacio,
+luego sugiéreme qué puedo eliminar sin riesgo
 ```
 
 ```
-I just got back from Japan — back up all my photos and videos and delete
-the originals from my iPhone
+Acabo de volver de Japón — haz backup de todas mis fotos y videos y elimina
+los originales de mi iPhone
 ```
 
 ```
-Free up 50GB from my iPhone by backing up old videos and photos, then
-deleting the verified backups
+Libera 50GB de mi iPhone haciendo backup de videos y fotos viejas, luego
+elimina los backups verificados
 ```
 
 **Instalación**

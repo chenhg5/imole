@@ -362,6 +362,24 @@ imole backup --to ~/backup/screenshots --ext png
 
 # Back up screenshots precisely: PNG + screen dimensions (auto-enables --with-meta)
 imole backup --to ~/backup/screenshots --ext png --min-width 1100 --min-height 2400
+
+# Back up directly to cloud storage via rclone (rclone must be installed and configured)
+# Syntax: --to rclone:<remote_name>:<remote_path>
+imole backup --to rclone:gdrive:iPhone/backup --only videos
+imole backup --to rclone:s3:my-bucket/iphone --older-than 90d
+imole backup --to rclone:onedrive:iPhone --only photos --dry-run
+```
+
+**Incremental backup:** Re-running `backup` to the same `--to` directory is safe and efficient.
+Files already present in `manifest.json` with `verified: true` are skipped automatically —
+no re-download, no USB session overhead if everything is already backed up.
+
+**Cloud backup via rclone:** Use `--to rclone:<remote>:<path>` to sync to any rclone-supported
+cloud storage (Google Drive, S3, OneDrive, Dropbox, Backblaze B2, SFTP, and 70+ others).
+imole first copies files to a local staging area (`~/.imole/rclone-cache/`), then runs
+`rclone copy` to push them to the remote. Requires rclone to be installed and configured:
+```bash
+rclone config   # add a remote named e.g. "gdrive", "s3", "onedrive"
 ```
 
 Use `--file REL_PATH` when the user chooses an exact item from `imole scan --top ...` output. The value should be the item's `rel_path`, and `--file` can be repeated.

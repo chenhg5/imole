@@ -16,6 +16,10 @@
   <a href="https://t.me/+ZpgBu1dlmCszODBl"><img src="https://img.shields.io/badge/chat-Telegram-blue?style=flat-square&logo=Telegram" alt="Telegram"></a>
 </p>
 
+<p align="center">
+  <a href="./README.md">English</a> | <a href="./README.zh-CN.md">中文</a> | <a href="./README.ja-JP.md">日本語</a> | <a href="./README.es-ES.md">Español</a> | <a href="./README.zh-TW.md">繁體中文</a>
+</p>
+
 > **iCloudを追加購入せずにiPhoneストレージを解放。** iMoleはiPhoneストレージ消費状況をスキャンし、写真と動画をPCにバックアップ、ファイルを検証してから安全に削除 — 1コマンドで完了。
 
 ## クイックスタート
@@ -23,23 +27,19 @@
 **これをLLMに渡す → 全部自動処理：**
 
 ```
-Back up all photos and videos older than 6 months from my iPhone to ~/backup,
-then delete the originals to free up space
+iPhoneで6ヶ月より古い写真と動画を~/backupにバックアップして、元のファイルを削除して容量を解放して
 ```
 
 ```
-Scan my iPhone storage and tell me which apps are taking up the most space,
-then suggest what I can safely remove
+iPhoneのストレージをスキャンして、どこが最も容量を使っているか確認し、削除して大丈夫なものを教えて
 ```
 
 ```
-I just got back from Japan — back up all my photos and videos and delete
-the originals from my iPhone
+日本から帰ってきたばかり — すべての写真と動画をバックアップして、iPhoneから元のファイルを削除して
 ```
 
 ```
-Free up 50GB from my iPhone by backing up old videos and photos, then
-deleting the verified backups
+iPhoneから50GB解放して古い動画と写真をバックアップして、検証済みバックアップを削除して
 ```
 
 **インストール**

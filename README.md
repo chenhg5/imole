@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="./README.md">English</a> | <a href="./README.zh-CN.md">中文</a> | <a href="./README.ja-JP.md">日本語</a> | <a href="./README.es-ES.md">Español</a>
+  <a href="./README.md">English</a> | <a href="./README.zh-CN.md">中文</a> | <a href="./README.ja-JP.md">日本語</a> | <a href="./README.es-ES.md">Español</a> | <a href="./README.zh-TW.md">繁體中文</a>
 </p>
 
 > **Free up your iPhone without buying more iCloud.** iMole scans what's eating your iPhone storage, backs up photos and videos to your computer, verifies each file, and then safely deletes the originals from the device — all from a single command.
@@ -82,6 +82,8 @@ imole clean  --manifest ~/iphone-backup/manifest.json --file DCIM/202507__/IMG_7
 - **Space diagnosis** — scan DCIM over USB, rank by size, filter by age or kind
 - **App storage ranking** — show iOS-reported App/Data usage with `imole scan apps`
 - **Smart backup** — copy to any local path, organized by year/month, verify by size
+- **Incremental backup** — re-running to the same `--to` directory skips already-verified files automatically
+- **Cloud backup via rclone** — `--to rclone:<remote>:<path>` syncs to Google Drive, S3, OneDrive, Dropbox, B2, and 70+ others
 - **Manifest** — every backup writes a `manifest.json` with source path, size, and verification status
 - **Safe deletion** — `imole clean` only deletes files that are `verified: true` in the manifest
 - **Cross-platform** — macOS (ImageCaptureCore, native USB), Linux (gphoto2 / ifuse), Windows (`--source PATH`)
@@ -307,7 +309,35 @@ Final step to reclaim space:
   Estimated space freed after that step: ~62.4 GB
 ```
 
-### Audit what iMole has done
+### Back up directly to cloud storage (rclone)
+
+```bash
+# First, install and configure rclone: https://rclone.org/install/
+rclone config   # add a remote — e.g. "gdrive" for Google Drive, "s3" for AWS S3
+
+# Then use --to rclone:<remote>:<path>
+imole backup --to rclone:gdrive:iPhone/backup --only videos --older-than 90d
+imole backup --to rclone:s3:my-bucket/iphone --only photos
+imole backup --to rclone:onedrive:iPhone --dry-run
+```
+
+imole copies files to a local staging area (`~/.imole/rclone-cache/`) first,
+verifies them, then calls `rclone copy` to push to the remote.
+Supports Google Drive, S3, OneDrive, Dropbox, Backblaze B2, SFTP, and 70+ others.
+
+### Incremental backup
+
+Re-running `backup` to the same `--to` directory is safe and fast.
+Files already in `manifest.json` with `verified: true` are skipped —
+no re-download, no USB session if everything is current.
+
+```bash
+# First run: copies 48 files
+imole backup --to ~/iphone-backup --only videos --older-than 90d
+# Second run: 0 new files, exits immediately
+imole backup --to ~/iphone-backup --only videos --older-than 90d
+# → "All 48 files already backed up — nothing new to do."
+```
 
 ```bash
 $ imole history
