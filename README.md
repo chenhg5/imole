@@ -442,6 +442,12 @@ imole backup --to ~/iphone-backup/screenshots --ext png --min-width 1100 --min-h
 imole backup --to ~/iphone-backup/screenshots --ext png --min-width 1100 --min-height 2400
 ```
 
+## Translations
+
+- [简体中文](README.zh-CN.md)
+- [日本語](README.ja-JP.md)
+- [Español](README.es-ES.md)
+
 ## Acknowledgments
 
 iMole was inspired by [Mole](https://github.com/tw93/mole) — a fantastic macOS system cleanup tool by [@tw93](https://github.com/tw93). Mole proved that a single CLI binary can replace heavyweight GUI apps for system maintenance, and its agent-friendly design principles deeply influenced how iMole is built. If you're looking to clean up your Mac, check it out — it's excellent.
