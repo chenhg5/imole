@@ -16,6 +16,10 @@
   <a href="https://t.me/+ZpgBu1dlmCszODBl"><img src="https://img.shields.io/badge/chat-Telegram-blue?style=flat-square&logo=Telegram" alt="Telegram"></a>
 </p>
 
+<p align="center">
+  <a href="./README.md">English</a> | <a href="./README.zh-CN.md">中文</a> | <a href="./README.ja-JP.md">日本語</a> | <a href="./README.es-ES.md">Español</a> | <a href="./README.zh-TW.md">繁體中文</a>
+</p>
+
 > **不買更多 iCloud 也能釋放 iPhone 空間。** iMole 掃描 iPhone 儲存占用情況，將照片和影片備份到電腦，驗證每個檔案，然後安全刪除原始檔案 — 一個命令搞定。
 
 ## 快速上手
