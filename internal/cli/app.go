@@ -187,6 +187,8 @@ func (a *App) Run(ctx context.Context, args []string) int {
 		return a.runClean(ctx, args[1:])
 	case "uninstall":
 		return a.runUninstall(ctx, args[1:])
+	case "icloud":
+		return a.runICloud(ctx, args[1:])
 	case "history":
 		return a.runHistory(ctx, args[1:])
 	case "update":

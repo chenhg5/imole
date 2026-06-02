@@ -198,6 +198,7 @@ func (a *App) renderCommands() string {
 		cmd("report  --manifest PATH", "Summarize a backup manifest") +
 		cmd("clean   --manifest PATH", "Delete verified files from iPhone") +
 		cmd("uninstall --bundle-id ID", "Remove a user-installed app from iPhone") +
+		cmd("icloud  --to DIR", "Download full-res originals from iCloud (needs icloudpd)") +
 		cmd("guide   [topic]", "Cleanup guide; use guide analysis for agent playbook") +
 		cmd("plan", "Interactive cleanup plan wizard: scan → choose A/B/C → execute") +
 		cmd("history [--limit N]", "Show recent backup and delete operations") +

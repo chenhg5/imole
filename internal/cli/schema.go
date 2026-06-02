@@ -142,6 +142,20 @@ var commandSchemas = map[string]SchemaCommand{
 			{Name: "yes", Type: "bool", Default: "false", Description: "skip confirmation prompt"},
 		},
 	},
+	"icloud": {
+		Name:        "icloud",
+		Description: "Download full-resolution originals from iCloud Photos using icloudpd. Use when the iPhone has 'Optimize iPhone Storage' enabled and only stores thumbnails locally.",
+		Flags: []SchemaFlag{
+			{Name: "to", Type: "string", Required: true, Description: "destination directory for downloaded photos/videos"},
+			{Name: "username", Type: "string", Default: "", Description: "Apple ID email address; prompted interactively if omitted"},
+			{Name: "album", Type: "string", Default: "All Photos", Description: "iCloud album to download"},
+			{Name: "password", Type: "string", Default: "", Description: "App-specific password (or set ICLOUD_PASSWORD env var); generate at https://appleid.apple.com/account/manage"},
+			{Name: "recent", Type: "int", Default: "0", Description: "download only the N most recently added items; 0 = all"},
+			{Name: "dry-run", Type: "bool", Default: "false", Description: "list what would be downloaded without downloading"},
+			{Name: "no-progress", Type: "bool", Default: "false", Description: "disable icloudpd progress output"},
+			{Name: "force-size", Type: "bool", Default: "false", Description: "skip size check and re-download files even if already present"},
+		},
+	},
 	"update": {
 		Name:        "update",
 		Description: "Update imole to the latest release",

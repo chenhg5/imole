@@ -44,6 +44,7 @@ _imole() {
         'backup:copy media to local path with verification'
         'clean:delete verified files from iPhone'
         'uninstall:remove a user-installed app from iPhone'
+        'icloud:download full-res originals from iCloud (needs icloudpd)'
         'report:summarise a backup manifest'
         'doctor:check device connection and dependencies'
         'history:show operation log'

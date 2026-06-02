@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"sort"
 	"strings"
@@ -339,6 +340,9 @@ func (a *App) printScanReport(result media.Result, source, largeThan, oldAgeRaw 
 		fmt.Fprintf(a.out, "Skipped:     %d unreadable entries\n", s.ScanSkipped)
 	}
 
+	// iCloud placeholder warning
+	printCloudPlaceholderWarning(a.out, result.Items, a.yellow, a.dim)
+
 	// Folder breakdown
 	if len(result.Items) > 0 {
 		a.printScanByFolder(result.Items, s.TotalSize)
@@ -368,7 +372,27 @@ func (a *App) printScanSummary(result media.Result, oldAgeRaw, largeThan string)
 	if largeThan != "" {
 		fmt.Fprintf(a.out, "Large:   %d files · %s (>%s)\n", s.LargeFiles, a.cyan(human.Bytes(s.LargeSize)), largeThan)
 	}
+	printCloudPlaceholderWarning(a.out, result.Items, a.yellow, a.dim)
 	return ExitSuccess
+}
+
+// printCloudPlaceholderWarning prints a one-line iCloud placeholder warning when
+// the scan result contains files that look like iCloud-optimized thumbnails.
+func printCloudPlaceholderWarning(w io.Writer, items []media.Item, yellow, dim func(string) string) {
+	var count int
+	var size int64
+	for _, item := range items {
+		if item.IsCloudPlaceholder {
+			count++
+			size += item.Size
+		}
+	}
+	if count == 0 {
+		return
+	}
+	fmt.Fprintf(w, "%s %d files (%s) look like iCloud-optimized thumbnails, not originals.\n",
+		yellow("⚠ iCloud:"), count, human.Bytes(size))
+	fmt.Fprintf(w, "  %s\n", dim("Use `imole icloud --to <dir>` to download full-resolution originals from iCloud."))
 }
 
 func (a *App) printTopItems(items []media.Item, only string, top int) int {

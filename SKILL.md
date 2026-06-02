@@ -443,6 +443,50 @@ imole uninstall --bundle-id com.example.myapp --yes
 
 > Never use `uninstall` on system apps or apps critical to device function. iMole blocks known system bundle ID prefixes (`com.apple.*`, `io.appstore`, etc.).
 
+### `imole icloud`
+
+Download **full-resolution originals** from iCloud Photos using `icloudpd`, bypassing the device entirely.
+Use this when the iPhone has **"Optimize iPhone Storage"** enabled — in that mode the device stores only
+low-res thumbnails locally, and `imole backup` would copy thumbnails instead of originals.
+
+**Prerequisites:** Install `icloudpd` first:
+```bash
+pip3 install icloudpd
+# or
+brew install icloudpd
+```
+
+**Usage:**
+```bash
+# Basic: download all photos/videos to a local directory
+imole icloud --to ~/iphone-full-backup --username me@apple.com
+
+# Download only the 200 most recent items
+imole icloud --to ~/icloud-recent --username me@apple.com --recent 200
+
+# Use a specific album
+imole icloud --to ~/icloud-japan --album Japan --username me@apple.com
+
+# Non-interactive with App-Specific Password (generate at https://appleid.apple.com/account/manage)
+ICLOUD_PASSWORD=xxxx-xxxx-xxxx-xxxx imole icloud --to ~/backup --username me@apple.com
+
+# Dry-run: see what would be downloaded
+imole icloud --to ~/backup --username me@apple.com --dry-run
+```
+
+**iCloud placeholder detection:** `imole scan` automatically detects files that are likely iCloud thumbnails
+(heuristic: file size < 100 KB per megapixel for HEIC/JPEG). When detected, a yellow warning is printed:
+```
+⚠ iCloud: 3,481 files (1.2 GiB) look like iCloud-optimized thumbnails, not originals.
+  Use `imole icloud --to <dir>` to download full-resolution originals from iCloud.
+```
+The field `is_cloud_placeholder: true` is also present in `--json` output for each affected item.
+
+**Key difference from `imole backup`:**
+- `imole backup` copies files that are physically on the device (may be thumbnails)
+- `imole icloud` downloads originals from Apple's iCloud servers (always full-res)
+- Both can be used together: `imole backup` for device files + `imole icloud` for iCloud originals
+
 ### `imole schema`
 
 Machine-readable command schema (flags, types, defaults). Use this to discover available flags.
@@ -453,6 +497,7 @@ imole schema scan
 imole schema backup
 imole schema clean
 imole schema uninstall
+imole schema icloud
 ```
 
 ---

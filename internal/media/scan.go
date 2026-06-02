@@ -83,7 +83,9 @@ func Scan(ctx context.Context, root string, opts Options) (Result, error) {
 	})
 
 	summary := Summary{Root: dcimRoot, ScanSkipped: skipped.Load()}
-	for _, item := range items {
+	for i := range items {
+		item := &items[i]
+		item.CheckCloudPlaceholder()
 		summary.TotalFiles++
 		summary.TotalSize += item.Size
 		switch item.Kind {

@@ -155,6 +155,9 @@ func imageCapturePayloadToResult(payload imageCapturePayload, opts media.Options
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].Size > items[j].Size
 	})
+	for i := range items {
+		items[i].CheckCloudPlaceholder()
+	}
 	return media.Result{Summary: summarize("imagecapture:"+payload.Device, items, opts), Items: items}
 }
 
@@ -197,6 +200,9 @@ func imageCaptureMetaPayloadToResult(payload imageCapturePayloadMeta, opts media
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].Size > items[j].Size
 	})
+	for i := range items {
+		items[i].CheckCloudPlaceholder()
+	}
 	return media.Result{Summary: summarize("imagecapture:"+payload.Device, items, opts), Items: items}
 }
 
