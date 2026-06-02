@@ -20,22 +20,26 @@
 
 ## Quick Start
 
-**Give an LLM this → it does everything:**
+**Give an LLM this → it handles everything:**
 
 ```
-帮我把手机里超过6个月的照片和视频备份到 ~/iphone-backup，然后删掉已备份的文件腾出空间
-```
-
-```
-Back up all videos from my iPhone to ~/backup and delete them after verification so I can free up 50GB
+Back up all photos and videos older than 6 months from my iPhone to ~/backup,
+then delete the originals to free up space
 ```
 
 ```
-帮我扫描一下手机存储，看看哪些app最占空间，然后给出清理建议
+Scan my iPhone storage and tell me which apps are taking up the most space,
+then suggest what I can safely remove
 ```
 
 ```
-I just came back from Japan — back up all my photos and videos from that trip and delete the originals
+I just got back from Japan — back up all my photos and videos and delete
+the originals from my iPhone
+```
+
+```
+Free up 50GB from my iPhone by backing up old videos and photos, then
+deleting the verified backups
 ```
 
 **Install**
