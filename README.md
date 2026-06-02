@@ -20,21 +20,22 @@
 
 ## Quick Start
 
-**Agent-friendly examples** — give an LLM this and it handles everything:
+**Give an LLM this → it does everything:**
 
-```bash
-# Let an AI back up all photos from last year's Japan trip
-imole scan --json --fields rel_path,size,mod_time | \
-  jq '.[] | select(.rel_path | contains("IMG_2024"))' | \
-  imole backup --to ~/japan-trip --file <rel_path>
+```
+帮我把手机里超过6个月的照片和视频备份到 ~/iphone-backup，然后删掉已备份的文件腾出空间
+```
 
-# Or let imole do the filtering — back up videos older than 6 months
-imole backup --to ~/backup --older-than 6m --only videos --dry-run
+```
+Back up all videos from my iPhone to ~/backup and delete them after verification so I can free up 50GB
+```
 
-# AI agent flow: scan → backup → clean, verified files only
-imole scan --summary && \
-  imole backup --to ~/iphone-backup --only photos --older-than 90d && \
-  imole clean  --manifest ~/iphone-backup/manifest.json --dry-run
+```
+帮我扫描一下手机存储，看看哪些app最占空间，然后给出清理建议
+```
+
+```
+I just came back from Japan — back up all my photos and videos from that trip and delete the originals
 ```
 
 **Install**
@@ -43,7 +44,7 @@ imole scan --summary && \
 curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bash
 ```
 
-**Manual flow**
+**Or: do it manually**
 
 ```bash
 imole doctor                                           # check device is connected
