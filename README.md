@@ -20,13 +20,30 @@
 
 ## Quick Start
 
+**Agent-friendly examples** — give an LLM this and it handles everything:
+
+```bash
+# Let an AI back up all photos from last year's Japan trip
+imole scan --json --fields rel_path,size,mod_time | \
+  jq '.[] | select(.rel_path | contains("IMG_2024"))' | \
+  imole backup --to ~/japan-trip --file <rel_path>
+
+# Or let imole do the filtering — back up videos older than 6 months
+imole backup --to ~/backup --older-than 6m --only videos --dry-run
+
+# AI agent flow: scan → backup → clean, verified files only
+imole scan --summary && \
+  imole backup --to ~/iphone-backup --only photos --older-than 90d && \
+  imole clean  --manifest ~/iphone-backup/manifest.json --dry-run
+```
+
 **Install**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chenhg5/imole/main/install.sh | bash
 ```
 
-**Run the full cleanup flow**
+**Manual flow**
 
 ```bash
 imole doctor                                           # check device is connected
