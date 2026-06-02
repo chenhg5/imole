@@ -16,9 +16,11 @@
   <a href="https://t.me/+ZpgBu1dlmCszODBl"><img src="https://img.shields.io/badge/chat-Telegram-blue?style=flat-square&logo=Telegram" alt="Telegram"></a>
 </p>
 
-> **Free up your iPhone without buying more iCloud.** iMole scans what's eating your iPhone storage, backs up photos and videos to your computer, verifies each file, and then safely deletes the originals from the device — all from a single command.
+<p align="center">
+  <a href="./README.md">English</a> | <a href="./README.zh-CN.md">中文</a> | <a href="./README.ja-JP.md">日本語</a> | <a href="./README.es-ES.md">Español</a>
+</p>
 
-**Translations:** [简体中文](README.zh-CN.md) · [日本語](README.ja-JP.md) · [Español](README.es-ES.md)
+> **Free up your iPhone without buying more iCloud.** iMole scans what's eating your iPhone storage, backs up photos and videos to your computer, verifies each file, and then safely deletes the originals from the device — all from a single command.
 
 ## Quick Start
 
