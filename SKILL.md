@@ -555,8 +555,12 @@ Use the following decision tree when helping a user free iPhone storage:
      (Faster; you only get the real files already on device)
    
    PATH B — Download originals from iCloud first, then backup:
-     Step B1: imole icloud --to ~/imole-backup --username user@apple.com
-     Step B2: imole backup --to ~/imole-backup [filters] --skip-placeholders
+     Step B1: imole scan --only-placeholders --json > /tmp/placeholders.json
+     Step B2: imole icloud --to ~/imole-backup --username user@apple.com --from-scan /tmp/placeholders.json
+              (or pipe directly: imole scan --only-placeholders --json | imole icloud --to ~/imole-backup --username ... --from-scan -)
+              → icloudpd is called with the exact date range of the placeholder files
+              → after download, imole prints a match report: N originals found / M still missing
+     Step B3: imole backup --to ~/imole-backup [filters] --skip-placeholders
      (Slower but complete; requires icloudpd + Apple ID)
    
    Do NOT silently backup placeholders — the user would unknowingly get thumbnails instead of originals.
