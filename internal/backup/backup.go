@@ -35,6 +35,10 @@ func Run(ctx context.Context, scan media.Result, opts Options) (Manifest, error)
 		}
 	}
 
+	// Load existing manifest to enable incremental backup: files already verified
+	// at the destination are carried forward and skipped from re-copying.
+	prevVerified := LoadVerifiedSet(filepath.Join(destRoot, ManifestName), destRoot)
+
 	manifest := Manifest{
 		Version:   1,
 		CreatedAt: time.Now(),
@@ -49,6 +53,16 @@ func Run(ctx context.Context, scan media.Result, opts Options) (Manifest, error)
 			return manifest, err
 		}
 		destRel := DestinationRel(item, opts.Layout)
+
+		// Incremental: skip files already verified at this destination.
+		if prev, ok := prevVerified[item.RelPath]; ok {
+			manifest.Summary.SelectedFiles++
+			manifest.Summary.SelectedSize += item.Size
+			manifest.Summary.SkippedFiles++
+			manifest.Files = append(manifest.Files, prev)
+			continue
+		}
+
 		entry := ManifestFile{
 			SourceRel: item.RelPath,
 			DestRel:   destRel,
@@ -156,4 +170,25 @@ func copyFile(src, dst string, expectedSize int64) error {
 func verifyFast(path string, size int64) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.Size() == size
+}
+
+// LoadVerifiedSet reads an existing manifest and returns a map of source_rel →
+// ManifestFile for every entry that is verified AND whose destination file still
+// exists at destRoot with the correct size.  Used for incremental backup.
+func LoadVerifiedSet(manifestPath, destRoot string) map[string]ManifestFile {
+	m, err := ReadManifest(manifestPath)
+	if err != nil {
+		return nil
+	}
+	set := make(map[string]ManifestFile, len(m.Files))
+	for _, f := range m.Files {
+		if !f.Verified {
+			continue
+		}
+		destPath := filepath.Join(destRoot, filepath.FromSlash(f.DestRel))
+		if info, err := os.Stat(destPath); err == nil && info.Size() == f.Size {
+			set[f.SourceRel] = f
+		}
+	}
+	return set
 }

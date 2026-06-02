@@ -93,13 +93,37 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		selectedSize += item.Size
 	}
 
+	// Peek at previously backed-up files to show accurate confirmation message.
+	absTo, _ := filepath.Abs(to)
+	prevVerified := backup.LoadVerifiedSet(filepath.Join(absTo, backup.ManifestName), absTo)
+	alreadyCount := 0
+	var newSize int64
+	for _, item := range selectedItems {
+		if _, ok := prevVerified[item.RelPath]; ok {
+			alreadyCount++
+		} else {
+			newSize += item.Size
+		}
+	}
+	newCount := selectedCount - alreadyCount
+
 	if dryRun {
 		fmt.Fprintf(a.err, "Dry-run: preview backup to %s\n", to)
 	} else if !yes && a.isTTY && selectedCount > 0 {
 		// Interactive confirmation before starting the actual copy
 		fmt.Fprintln(a.out)
+		if alreadyCount > 0 {
+			fmt.Fprintf(a.out, "%s already backed up, %s new\n",
+				a.dim(fmt.Sprintf("%d files", alreadyCount)),
+				a.cyan(fmt.Sprintf("%d files · %s", newCount, human.Bytes(newSize))))
+		}
+		if newCount == 0 {
+			fmt.Fprintf(a.out, "All %d files already backed up to %s — nothing new to do.\n",
+				selectedCount, a.cyan(to))
+			return ExitSuccess
+		}
 		fmt.Fprintf(a.out, "Ready to back up %s to %s\n",
-			a.cyan(fmt.Sprintf("%d files · %s", selectedCount, human.Bytes(selectedSize))),
+			a.cyan(fmt.Sprintf("%d new files · %s", newCount, human.Bytes(newSize))),
 			a.cyan(to))
 		fmt.Fprintf(a.out, "Proceed? [y/N] ")
 		reader := bufio.NewReader(a.in)
@@ -120,7 +144,7 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		return ExitSuccess
 	}
 
-	a.status(fmt.Sprintf("Backing up %d files to %s…", selectedCount, to))
+	a.status(fmt.Sprintf("Backing up %d new files to %s…", newCount, to))
 	var manifest backup.Manifest
 
 	// When --limit was applied, replace result.Items with the already-filtered+limited
@@ -179,6 +203,9 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 	fmt.Fprintln(a.out, a.bold("Backup complete"))
 	fmt.Fprintf(a.out, "Destination: %s\n", a.cyan(absPath(to)))
 	fmt.Fprintf(a.out, "Selected:    %d files · %s\n", manifest.Summary.SelectedFiles, a.cyan(human.Bytes(manifest.Summary.SelectedSize)))
+	if manifest.Summary.SkippedFiles > 0 {
+		fmt.Fprintf(a.out, "%s %d files (already backed up)\n", a.dim("Skipped:    "), manifest.Summary.SkippedFiles)
+	}
 	if manifest.Summary.SelectedFiles == 0 && len(result.Items) > 0 {
 		printLargestHint(a.out, result.Items, f)
 	}
@@ -258,6 +285,10 @@ func (a *App) runProviderBackup(ctx context.Context, result media.Result, to str
 		CreatedAt: f.Now,
 		Root:      result.Summary.Root,
 	}
+
+	// Incremental: load previously verified files at the same destination.
+	prevVerified := backup.LoadVerifiedSet(filepath.Join(to, backup.ManifestName), to)
+
 	var requests []provider.DownloadRequest
 	for _, item := range result.Items {
 		if !f.Match(item) {
@@ -266,6 +297,14 @@ func (a *App) runProviderBackup(ctx context.Context, result media.Result, to str
 		destRel := backup.DestinationRel(item, layout)
 		manifest.Summary.SelectedFiles++
 		manifest.Summary.SelectedSize += item.Size
+
+		// Skip files already verified at this destination.
+		if prev, ok := prevVerified[item.RelPath]; ok {
+			manifest.Summary.SkippedFiles++
+			manifest.Files = append(manifest.Files, prev)
+			continue
+		}
+
 		manifest.Files = append(manifest.Files, backup.ManifestFile{
 			SourceRel: item.RelPath,
 			DestRel:   destRel,
@@ -280,6 +319,10 @@ func (a *App) runProviderBackup(ctx context.Context, result media.Result, to str
 	}
 	if err := os.MkdirAll(to, 0o755); err != nil {
 		return manifest, err
+	}
+	if len(requests) == 0 {
+		// All files already backed up — skip USB session entirely.
+		return manifest, nil
 	}
 	fmt.Fprintf(a.err, "Downloading %d files with %s provider...\n", len(requests), providerName)
 	results, err := provider.Download(ctx, providerName, requests, to)
