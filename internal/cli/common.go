@@ -31,15 +31,17 @@ func (s *stringList) Set(value string) error {
 
 // metaFlags holds metadata-based filter flag values.
 type metaFlags struct {
-	country     string
-	noGPS       bool
-	takenAfter  string
-	takenBefore string
-	durationGt  float64
-	minWidth    int
-	minHeight   int
-	maxWidth    int
-	maxHeight   int
+	country          string
+	noGPS            bool
+	takenAfter       string
+	takenBefore      string
+	durationGt       float64
+	minWidth         int
+	minHeight        int
+	maxWidth         int
+	maxHeight        int
+	skipPlaceholders bool
+	onlyPlaceholders bool
 }
 
 func parseFilterMeta(only, olderThan, largeThan, ext string, files []string, meta metaFlags) (filter.Filter, error) {
@@ -74,6 +76,8 @@ func parseFilterMeta(only, olderThan, largeThan, ext string, files []string, met
 	f.MinHeight = meta.minHeight
 	f.MaxWidth = meta.maxWidth
 	f.MaxHeight = meta.maxHeight
+	f.SkipPlaceholders = meta.skipPlaceholders
+	f.OnlyPlaceholders = meta.onlyPlaceholders
 	if meta.takenAfter != "" {
 		t, err := parseDate(meta.takenAfter)
 		if err != nil {
@@ -148,6 +152,8 @@ func addMetaFilterFlags(fs *flag.FlagSet, m *metaFlags) {
 	fs.IntVar(&m.minHeight, "min-height", 0, "keep items with height >= N pixels (requires --with-meta)")
 	fs.IntVar(&m.maxWidth, "max-width", 0, "keep items with width <= N pixels (requires --with-meta)")
 	fs.IntVar(&m.maxHeight, "max-height", 0, "keep items with height <= N pixels (requires --with-meta)")
+	fs.BoolVar(&m.skipPlaceholders, "skip-placeholders", false, "exclude iCloud-optimized thumbnails (keep only confirmed full-res files)")
+	fs.BoolVar(&m.onlyPlaceholders, "only-placeholders", false, "include ONLY iCloud-optimized thumbnails (to pipe into `imole icloud`)")
 }
 
 func addProviderFlags(fs *flag.FlagSet, providerName, source *string) {

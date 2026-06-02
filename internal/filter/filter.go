@@ -40,6 +40,10 @@ type Filter struct {
 	MinHeight int
 	MaxWidth  int
 	MaxHeight int
+
+	// iCloud placeholder filters (no metadata required; uses CheckCloudPlaceholder heuristic).
+	SkipPlaceholders bool // exclude files flagged as iCloud thumbnails
+	OnlyPlaceholders bool // include ONLY files flagged as iCloud thumbnails
 }
 
 func Default() Filter {
@@ -81,6 +85,14 @@ func (f Filter) Match(item media.Item) bool {
 	if f.NoGPS && item.HasGPS {
 		return false
 	}
+	// iCloud placeholder filters.
+	if f.SkipPlaceholders && item.IsCloudPlaceholder {
+		return false
+	}
+	if f.OnlyPlaceholders && !item.IsCloudPlaceholder {
+		return false
+	}
+
 	if f.Country != "" {
 		loc := geo.Location{
 			Country:     item.Country,

@@ -363,6 +363,14 @@ imole backup --to ~/backup/screenshots --ext png
 # Back up screenshots precisely: PNG + screen dimensions (auto-enables --with-meta)
 imole backup --to ~/backup/screenshots --ext png --min-width 1100 --min-height 2400
 
+# iCloud placeholder handling:
+# Option A — skip thumbnails, only backup confirmed full-res files
+imole backup --to ~/backup --skip-placeholders --only photos
+# Option B — backup ONLY the placeholder files (to know what needs icloud download)
+imole scan --only-placeholders --json
+# Then fetch originals from iCloud:
+imole icloud --to ~/backup --username me@apple.com
+
 # Back up directly to cloud storage via rclone (rclone must be installed and configured)
 # Syntax: --to rclone:<remote_name>:<remote_path>
 imole backup --to rclone:gdrive:iPhone/backup --only videos
@@ -535,6 +543,24 @@ Use the following decision tree when helping a user free iPhone storage:
 5. Run `imole backup --to ~/imole-backup [filters] --dry-run`
    → confirm count and size with user.
    → exit 10 = safe to continue.
+
+5a. **iCloud placeholder check** (IMPORTANT — check BEFORE running actual backup):
+   After scan, check if `imole scan --json` output has items with `is_cloud_placeholder: true`
+   OR if the scan text output contains a "⚠ iCloud:" warning line.
+   
+   If placeholders are detected, present user with TWO paths:
+   
+   PATH A — Skip placeholders, backup only confirmed originals:
+     imole backup --to ~/imole-backup [filters] --skip-placeholders
+     (Faster; you only get the real files already on device)
+   
+   PATH B — Download originals from iCloud first, then backup:
+     Step B1: imole icloud --to ~/imole-backup --username user@apple.com
+     Step B2: imole backup --to ~/imole-backup [filters] --skip-placeholders
+     (Slower but complete; requires icloudpd + Apple ID)
+   
+   Do NOT silently backup placeholders — the user would unknowingly get thumbnails instead of originals.
+   Always ask or warn.
 
 6. Run `imole backup --to ~/imole-backup [filters]`
    → check `manifest.summary.failed_files == 0`.

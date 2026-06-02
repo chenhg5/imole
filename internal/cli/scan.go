@@ -181,7 +181,7 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 			items := media.TopItems(filtered, only, top)
 			return a.outputJSON(items, fields)
 		}
-		if hasMetaFilter || f.Only != "all" || f.OlderThan > 0 || f.LargeThan > 0 || len(f.Files) > 0 || f.Ext != "" || limit > 0 {
+		if hasMetaFilter || f.Only != "all" || f.OlderThan > 0 || f.LargeThan > 0 || len(f.Files) > 0 || f.Ext != "" || limit > 0 || f.SkipPlaceholders || f.OnlyPlaceholders {
 			// Return filtered items + mini summary when filters are active.
 			type filteredResult struct {
 				FilteredCount int          `json:"filtered_count"`
