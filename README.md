@@ -18,6 +18,8 @@
 
 > **Free up your iPhone without buying more iCloud.** iMole scans what's eating your iPhone storage, backs up photos and videos to your computer, verifies each file, and then safely deletes the originals from the device — all from a single command.
 
+**Translations:** [简体中文](README.zh-CN.md) · [日本語](README.ja-JP.md) · [Español](README.es-ES.md)
+
 ## Quick Start
 
 **Give an LLM this → it handles everything:**
@@ -441,12 +443,6 @@ imole backup --to ~/iphone-backup/screenshots --ext png
 imole backup --to ~/iphone-backup/screenshots --ext png --min-width 1100 --min-height 2400 --dry-run
 imole backup --to ~/iphone-backup/screenshots --ext png --min-width 1100 --min-height 2400
 ```
-
-## Translations
-
-- [简体中文](README.zh-CN.md)
-- [日本語](README.ja-JP.md)
-- [Español](README.es-ES.md)
 
 ## Acknowledgments
 
