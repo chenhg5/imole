@@ -93,6 +93,11 @@ func Read(provider, source string, ttl time.Duration) (Entry, bool) {
 	if time.Since(entry.ScannedAt) > ttl {
 		return Entry{}, false
 	}
+	// Re-apply placeholder detection in case the cache was written by an older
+	// binary that didn't set IsCloudPlaceholder.
+	for i := range entry.Result.Items {
+		entry.Result.Items[i].CheckCloudPlaceholder()
+	}
 	return entry, true
 }
 

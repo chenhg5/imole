@@ -110,7 +110,10 @@ func (a *App) runScan(ctx context.Context, args []string) int {
 	var fromCache bool
 
 	if useCache && !withMeta {
-		if entry, ok := scancache.Read(providerName, source, scancache.DefaultTTL); ok {
+		// When --cache is explicitly requested, accept entries up to 48 h old so
+		// that a recent iPhone backup scan can be reused even after the 1-h default TTL.
+		cacheTTL := 48 * time.Hour
+		if entry, ok := scancache.Read(providerName, source, cacheTTL); ok {
 			result = entry.Result
 			fromCache = true
 			age := time.Since(entry.ScannedAt)

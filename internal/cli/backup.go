@@ -16,6 +16,7 @@ import (
 	"github.com/chenhg5/imole/internal/human"
 	"github.com/chenhg5/imole/internal/media"
 	"github.com/chenhg5/imole/internal/provider"
+	"github.com/chenhg5/imole/internal/scancache"
 )
 
 func (a *App) runBackup(ctx context.Context, args []string) int {
@@ -81,6 +82,9 @@ func (a *App) runBackup(ctx context.Context, args []string) int {
 		return ExitError
 	}
 	stopSpinner(fmt.Sprintf("Scan complete: %d files · %s", result.Summary.TotalFiles, human.Bytes(result.Summary.TotalSize)))
+	if !withMeta {
+		_ = scancache.Write(providerName, source, result)
+	}
 
 	// Apply filter then optional limit (sorted by size desc).
 	selectedItems := provider.FilteredItems(result, f)

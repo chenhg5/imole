@@ -149,6 +149,7 @@ var commandSchemas = map[string]SchemaCommand{
 			{Name: "to", Type: "string", Required: true, Description: "destination directory for downloaded photos/videos"},
 			{Name: "username", Type: "string", Default: "", Description: "Apple ID email address; prompted interactively if omitted"},
 			{Name: "album", Type: "string", Default: "All Photos", Description: "iCloud album to download"},
+			{Name: "domain", Type: "string", Default: "", Description: "iCloud domain: omit for international accounts; use 'cn' (or 'icloud.com.cn') for China-registered Apple IDs"},
 			{Name: "password", Type: "string", Default: "", Description: "App-specific password (or set ICLOUD_PASSWORD env var); generate at https://appleid.apple.com/account/manage"},
 			{Name: "recent", Type: "int", Default: "0", Description: "download only the N most recently added items; 0 = all"},
 			{Name: "dry-run", Type: "bool", Default: "false", Description: "list what would be downloaded without downloading"},
